@@ -498,3 +498,32 @@ def test_wildcard_and_free_hit_are_declared_unvalued_not_zero():
     bb = g["chips"]["bb"]
     assert bb["valued"] is True, "bench boost is genuinely priced"
     assert bb["best_gw"] in gws
+
+
+# --- chips read from the entry's own history ------------------------------
+
+
+def test_chips_played_maps_fpl_names():
+    from gaffer.planner import chips_played
+    hist = {"chips": [{"name": "3xc", "event": 4}, {"name": "bboost", "event": 2}]}
+    assert chips_played(hist) == ("tc", "bb")
+
+
+def test_chips_played_drops_names_it_cannot_map():
+    from gaffer.planner import chips_played
+    # Silently reading an unknown chip as "nothing played" is the dangerous
+    # direction, so it must not appear as a known chip either.
+    assert chips_played({"chips": [{"name": "manager"}]}) == ()
+    assert chips_played({}) == ()
+    assert chips_played(None) == ()
+
+
+def test_reconcile_chips_finds_the_one_you_forgot_to_declare():
+    from gaffer.planner import reconcile_chips
+    missing, surplus = reconcile_chips(declared=(), played=("tc",))
+    assert missing == ("tc",) and surplus == ()
+
+    missing, surplus = reconcile_chips(declared=("tc", "wc"), played=("tc",))
+    assert missing == () and surplus == ("wc",)
+
+    assert reconcile_chips(("tc",), ("tc",)) == ((), ())

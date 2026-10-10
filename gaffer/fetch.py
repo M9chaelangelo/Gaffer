@@ -27,6 +27,14 @@ def fixtures():
     return _get(f"{FPL}/fixtures/")
 
 
+def history(entry_id):
+    """Season history for an entry — and, in `chips`, every chip it has played.
+
+    This is public. `chips_used` in config exists because nothing read it.
+    """
+    return _get(f"{FPL}/entry/{entry_id}/history/")
+
+
 def entry(entry_id):
     return _get(f"{FPL}/entry/{entry_id}/")
 

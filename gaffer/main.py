@@ -110,6 +110,27 @@ def main():
     squad_ids = [p["element"] for p in my["picks"]]
     bank = my["entry_history"]["bank"] / 10
 
+    # Which chips are gone is public, and `chips_used` in config is typed by
+    # hand, so it decays. A chip declared as held but already played is the
+    # expensive direction: the sweep ranks it, and the best number on the page
+    # becomes a move that cannot be made. Reported rather than overridden —
+    # config stays the single source of truth, it just stops being able to
+    # drift silently.
+    try:
+        played = planner.chips_played(fetch.history(cfg["entry_id"]))
+        missing, surplus = planner.reconcile_chips(
+            planner.chips_used(cfg)[0], played)
+        if missing:
+            print("  !! chips played but not in chips_used: "
+                  + ", ".join(missing)
+                  + " — the sweep will offer chips you do not have")
+        if surplus:
+            print("  !! chips_used lists chips your history does not show: "
+                  + ", ".join(surplus))
+    except Exception as e:                                  # noqa: BLE001
+        # A diagnostic must never be the reason a deadline-morning solve dies.
+        print(f"  (could not check chips against your history: {e})")
+
     # FPL's public API shows last gameweek's squad and does not expose transfers
     # you have already made for the upcoming one. If you have moved this week,
     # list the current fifteen in config as `current_squad` — otherwise the

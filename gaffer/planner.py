@@ -344,6 +344,39 @@ def chips_used(cfg):
     return tuple(dict.fromkeys(spent)), unknown
 
 
+def chips_played(history):
+    """The chip names an entry's public history says it has already played.
+
+    FPL's own names differ from ours ("3xc", "bboost", "freehit", "wildcard"),
+    and unknown ones are dropped rather than guessed at: a name we cannot map
+    must not silently become "nothing was played".
+    """
+    alias = {
+        "3xc": "tc", "tc": "tc",
+        "bboost": "bb", "bb": "bb",
+        "freehit": "fh", "fh": "fh",
+        "wildcard": "wc", "wc": "wc",
+    }
+    out = []
+    for c in ((history or {}).get("chips") or []):
+        name = c.get("name") if isinstance(c, dict) else c
+        key = alias.get(str(name).strip().lower())
+        if key:
+            out.append(key)
+    return tuple(dict.fromkeys(out))
+
+
+def reconcile_chips(declared, played):
+    """Where `chips_used` disagrees with the entry's actual history.
+
+    Returns (missing, surplus): chips played but not declared, and chips
+    declared but not played. The first is the dangerous one — it is the case
+    that had the sweep recommending a Triple Captain already spent.
+    """
+    declared, played = set(declared or ()), set(played or ())
+    return tuple(sorted(played - declared)), tuple(sorted(declared - played))
+
+
 def chip_windows(gws, spent=()):
     """Which gameweeks each chip may legally be played in.
 
