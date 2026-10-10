@@ -430,3 +430,47 @@ def test_grade_surfaces_names_it_could_not_resolve():
     cfg = {"my_plan": {5: {"out": ["Nobody"], "in": ["M108"]}}}
     g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
     assert any("Nobody" in u for u in g["unresolved"])
+
+
+# --- chips already played ------------------------------------------------
+#
+# FPL's public API does not expose which chips an entry has spent, so it is
+# declared in config. Before `chips_used` was wired through, the sweep offered
+# every chip every week regardless — including ones already played, which is a
+# recommendation the manager cannot act on.
+
+
+def test_a_spent_chip_is_not_swept():
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    cfg = {"chips_used": ["tc"]}
+    g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
+    assert "tc" not in g["chips"], "a chip already played is not a decision"
+    assert "bb" in g["chips"], "the chips still held are still swept"
+    assert g["chips_used"] == ["tc"]
+
+
+def test_planning_a_spent_chip_is_a_violation():
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    cfg = {"chips_used": ["tc"], "chip_plan": {"tc": 6}}
+    g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
+    codes = [v["code"] for v in g["plan"]["violations"]]
+    assert "chip-spent" in codes, "a stale chip_plan entry must be reported"
+
+
+def test_a_typo_in_chips_used_is_reported_not_ignored():
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    cfg = {"chips_used": ["triple_captain"]}
+    g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
+    assert any("triple_captain" in u for u in g["unresolved"])
+    # Silently reading it as "nothing spent" is the failure mode: the sweep
+    # would then offer a chip that is gone.
+    assert g["chips_used"] == []
+
+
+def test_a_spent_chip_has_no_window():
+    windows = chip_windows(list(range(15, 25)), spent=("wc",))
+    assert "wc" not in windows
+    assert max(windows["bb"]) == 19

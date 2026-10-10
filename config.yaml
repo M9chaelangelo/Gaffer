@@ -71,6 +71,12 @@ elite_sample: 100      # how many of the world's top managers to sample
 # Gameweeks you have committed to. The solver stops re-deciding these every week
 # and plans around them instead. Remove a line to hand that chip back to it.
 # One chip per gameweek — the solver enforces that, so do not double-book.
+# Chips already played this half. FPL's public API does not expose this, so it
+# is declared here for the same reason free_transfers is. Get it wrong and the
+# report recommends a chip you do not have — which is how a GW8 Triple Captain
+# worth 9.3 points got suggested for a chip that was already spent.
+chips_used: [tc]
+
 chip_plan:
   # Triple Captain is SPENT — it is no longer a decision and must not be planned.
   # Leaving `tc` here had the solver building around a chip that does not exist.

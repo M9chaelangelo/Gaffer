@@ -326,16 +326,35 @@ def evaluate(plan_steps, proj, squad_ids, bank, first_ft, gws,
     return result
 
 
-def chip_windows(gws):
+def chips_used(cfg):
+    """The chips already played, from `chips_used` in config.
+
+    FPL's public API does not say which chips an entry has spent, so this is
+    declared rather than discovered — the same reason `free_transfers` is.
+    Returns (spent, unknown): the names that are chips, and the ones that are
+    not, so a typo is reported instead of silently meaning "nothing is spent".
+    """
+    raw = (cfg or {}).get("chips_used") or ()
+    if isinstance(raw, str):
+        raw = [raw]
+    spent, unknown = [], []
+    for name in raw:
+        key = str(name).strip().lower()
+        (spent if key in CHIP_NAMES else unknown).append(key)
+    return tuple(dict.fromkeys(spent)), unknown
+
+
+def chip_windows(gws, spent=()):
     """Which gameweeks each chip may legally be played in.
 
     The first set of chips expires at the GW19 deadline, so a plan that saves
     Bench Boost for GW21 while still holding a first-half chip is not late —
-    it is impossible.
+    it is impossible. A chip already spent has no window at all.
     """
     return {
         chip: [g for g in gws if g <= FIRST_HALF_LAST_GW]
         for chip in CHIP_NAMES
+        if chip not in spent
     }
 
 
@@ -438,11 +457,19 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
     settles an argument about a chip week.
     """
     steps, missing = from_config(cfg, proj, gws)
-    result = evaluate(steps, proj, squad_ids, bank, first_ft, gws, sell)
+    spent, unknown = chips_used(cfg)
+    result = evaluate(steps, proj, squad_ids, bank, first_ft, gws, sell,
+                      chips_used_before=spent)
 
     placed = {s.get("chip") for s in steps.values() if s.get("chip")}
     sweeps = {}
     for chip in CHIP_NAMES:
+        # A chip already played is not a decision. Sweeping it produces a
+        # recommendation the manager cannot act on, which is worse than
+        # silence: the GW8 Triple Captain it suggested was worth 9.3 points
+        # and did not exist.
+        if chip in spent:
+            continue
         ranked = sweep_chip(chip, steps, proj, squad_ids, bank, first_ft, gws, sell)
         if not ranked:
             continue
@@ -463,7 +490,12 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
     return {
         "plan": result.as_dict(),
         "steps": {g: dict(s) for g, s in steps.items()},
-        "unresolved": missing,
+        "unresolved": missing + [
+            f'"{name}" in chips_used is not an FPL chip. Use one of: '
+            + ", ".join(sorted(CHIP_NAMES)) + "."
+            for name in unknown
+        ],
+        "chips_used": list(spent),
         "chips": sweeps,
         "horizon": {"from": gws[0], "to": gws[-1]},
         "solver_total": solver_total,
