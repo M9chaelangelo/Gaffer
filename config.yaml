@@ -75,10 +75,36 @@ elite_sample: 100      # how many of the world's top managers to sample
 # can only be wrong from here, and a wildcard drafted against the wrong
 # fifteen is drafted against the wrong budget. Put it back the moment you make
 # a transfer for a deadline that has not passed yet.
-# current_squad:
-#   - Lammens
-#   ...
-# bank: 1.4
+# Pinned from the manager's own GW6 Transfers screen, 10 Oct 08:35 UTC. The API
+# read (entry/3907632/event/5/picks) returned a materially different fifteen —
+# only Rogers, Joao Pedro and Haaland overlap — so one of the two is not this
+# team. The screen the manager is looking at wins; a wildcard drafted against
+# the wrong fifteen is drafted against the wrong budget and the wrong sells.
+# Worth resolving before next week: see RUNBOOK.md.
+#
+# Prices here are SELLING prices as the Transfers page shows them, which is what
+# the budget is actually made of.
+current_squad:
+  - Leno          # 4.5  IPS (A)
+  - Kelleher      # 5.0  AVL (A)
+  - Robinson      # 4.5  IPS (A)  flagged 
+  - Greaves       # 3.9  FUL (H)
+  - Konsa         # 4.6  LEE (H)  flagged
+  - Ballard       # 4.9  BHA (H)  RED flag
+  - Hill          # 5.5  CHE (A)
+  - Crooks        # 4.4  EVE (H)
+  - Rogers        # 7.7  BOU (H)
+  - Saka          # 9.5  LEE (H)
+  - Palmer        # 9.7  BOU (H)
+  - Groß          # 5.8  SUN (A)
+  - Haaland       # 15.5 LIV (A)
+  - Gonzalo       # 6.0  IPS (A)
+  - João Pedro    # 7.6  BOU (H)
+bank: 0.4
+
+# Zero free transfers this week — every move in GW6 costs 4. Declared because
+# the public API does not expose it.
+free_transfers: 0
 
 # --- locked chip plan --------------------------------------------------------
 # Gameweeks you have committed to. The solver stops re-deciding these every week
