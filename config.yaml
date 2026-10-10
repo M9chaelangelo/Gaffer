@@ -72,9 +72,16 @@ elite_sample: 100      # how many of the world's top managers to sample
 # and plans around them instead. Remove a line to hand that chip back to it.
 # One chip per gameweek — the solver enforces that, so do not double-book.
 chip_plan:
-  tc: 7      # Triple Captain — Haaland home to Ipswich, 13.9 projected vs 9.0 in GW3
-  wc: 6      # Wildcard, 10 Oct, first week after the international break
-  bb: 9      # Bench Boost — see notes; GW7 clashes with the best Haaland fixture
+  # Triple Captain is SPENT — it is no longer a decision and must not be planned.
+  # Leaving `tc` here had the solver building around a chip that does not exist.
+  wc: 7      # Wildcard, 17 Oct. GW6 was the break week, but the fixture swing
+             # lands at GW7 (Bournemouth and Spurs improve, Fulham start
+             # Hull/Coventry, City host Ipswich) and GW6's team news is
+             # unresolved — Joao Pedro is due back 17 Oct, Isak and Gakpo out.
+  bb: 9      # Bench Boost. Held two weeks after the rebuild so the drafted
+             # fifteen is known-fit before it is spent.
+  # Free Hit is deliberately unset. There are no blanks before the GW19 expiry,
+  # so there is no week it obviously belongs in — let the chip sweep price it.
 
 # --- the rebuild -------------------------------------------------------------
 # A wildcard gets its own solve, because it is a different question from a
