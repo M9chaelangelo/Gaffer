@@ -474,3 +474,27 @@ def test_a_spent_chip_has_no_window():
     windows = chip_windows(list(range(15, 25)), spent=("wc",))
     assert "wc" not in windows
     assert max(windows["bb"]) == 19
+
+
+def test_wildcard_and_free_hit_are_declared_unvalued_not_zero():
+    """The sweep moves a chip's label, never its transfers.
+
+    So wc and fh gain exactly nothing in every week, and printing that as
+    `best_gw` with gain 0.0 turns the first week of a tie into a confident
+    recommendation about the single biggest decision in the game.
+    """
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    g = grade({}, proj, squad_ids(), 0.0, 1, gws)
+
+    for chip in ("wc", "fh"):
+        entry = g["chips"][chip]
+        assert entry["valued"] is False
+        assert entry["best_gw"] is None, "an unvalued chip names no best week"
+        assert entry["best_gain"] is None
+        assert all(r["gain"] is None for r in entry["ranked"])
+        assert "squad" in entry["note"]
+
+    bb = g["chips"]["bb"]
+    assert bb["valued"] is True, "bench boost is genuinely priced"
+    assert bb["best_gw"] in gws

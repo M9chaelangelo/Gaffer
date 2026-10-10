@@ -476,7 +476,7 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
         current = next((g for g, s in steps.items() if s.get("chip") == chip), None)
         best = ranked[0]
         here = next((r["gain"] for r in ranked if r["gw"] == current), None)
-        sweeps[chip] = {
+        entry = {
             "name": CHIP_NAMES[chip],
             "ranked": ranked[:6],
             "current_gw": current,
@@ -485,7 +485,33 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
             "gain_here": here,
             "move_gain": None if here is None else round(best["gain"] - here, 2),
             "placed": chip in placed,
+            "valued": True,
         }
+
+        # Wildcard and Free Hit are worth only the players they let you change,
+        # and the sweep moves the chip's label between weeks without moving any
+        # transfers. Their gain is therefore identically zero in every week —
+        # not a tie to be broken, an answer that was never computed. Reporting
+        # it as `best_gw` with a gain of 0.0 reads as a recommendation, and the
+        # first week in the list silently becomes "the best week".
+        #
+        # Valuing them properly means re-drafting the squad for each candidate
+        # week, which is what wildcard.py does once over a 168-player pool in
+        # three minutes. Doing it per week per chip inside the sweep is a
+        # different order of cost, so it is declared unvalued instead of
+        # guessed at.
+        if chip in UNLIMITED:
+            entry.update(
+                valued=False,
+                ranked=[{"gw": r["gw"], "gain": None} for r in ranked[:6]],
+                best_gw=None, best_gain=None, gain_here=None, move_gain=None,
+                note=(f"{CHIP_NAMES[chip]} is not priced by the sweep: its "
+                      "value is the squad it buys, and the sweep holds the "
+                      "squad fixed. Compare drafts instead "
+                      "(--wildcard N per candidate week)."),
+            )
+
+        sweeps[chip] = entry
 
     return {
         "plan": result.as_dict(),

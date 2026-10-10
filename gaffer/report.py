@@ -375,16 +375,26 @@ def render(ctx, path):
                      "<th class=n>Worth moving</th></tr>")
             for c in chips:
                 where = f"GW{c['current_gw']}" if c["current_gw"] else "unplaced"
-                move = ("—" if c["move_gain"] in (None, 0)
-                        else f"{c['move_gain']:+.1f}")
+                if not c.get("valued", True):
+                    # Not "no gain" — not priced. Saying "GW6 (+0.0)" here
+                    # would read as a recommendation.
+                    best, move = "not priced by the sweep", "—"
+                else:
+                    best = f"GW{c['best_gw']} ({c['best_gain']:+.1f})"
+                    move = ("—" if c["move_gain"] in (None, 0)
+                            else f"{c['move_gain']:+.1f}")
                 p.append(f"<tr><td>{_esc(c['name'])}</td><td>{_esc(where)}</td>"
-                         f"<td>GW{c['best_gw']} ({c['best_gain']:+.1f})</td>"
+                         f"<td>{_esc(best)}</td>"
                          f"<td class=n>{_esc(move)}</td></tr>")
             p.append("</table>")
             p.append("<p class=note>Every free week in the horizon was tried, so "
                      "this is exact — as far as the horizon reaches. If the right "
                      "week for a chip is beyond "
-                     f"GW{pl['horizon']['to']}, nothing here can see it.</p>")
+                     f"GW{pl['horizon']['to']}, nothing here can see it. "
+                     "Wildcard and Free Hit are not priced here at all: their "
+                     "value is the squad they buy, and this sweep holds the "
+                     "squad fixed. Compare drafts for each candidate week "
+                     "instead.</p>")
 
     p.append("<footer>Projections blend Solio Analytics' public feed with a local "
              "fallback model. Mini-league ownership from the FPL API. "
