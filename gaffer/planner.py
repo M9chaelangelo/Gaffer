@@ -326,16 +326,68 @@ def evaluate(plan_steps, proj, squad_ids, bank, first_ft, gws,
     return result
 
 
-def chip_windows(gws):
+def chips_used(cfg):
+    """The chips already played, from `chips_used` in config.
+
+    FPL's public API does not say which chips an entry has spent, so this is
+    declared rather than discovered — the same reason `free_transfers` is.
+    Returns (spent, unknown): the names that are chips, and the ones that are
+    not, so a typo is reported instead of silently meaning "nothing is spent".
+    """
+    raw = (cfg or {}).get("chips_used") or ()
+    if isinstance(raw, str):
+        raw = [raw]
+    spent, unknown = [], []
+    for name in raw:
+        key = str(name).strip().lower()
+        (spent if key in CHIP_NAMES else unknown).append(key)
+    return tuple(dict.fromkeys(spent)), unknown
+
+
+def chips_played(history):
+    """The chip names an entry's public history says it has already played.
+
+    FPL's own names differ from ours ("3xc", "bboost", "freehit", "wildcard"),
+    and unknown ones are dropped rather than guessed at: a name we cannot map
+    must not silently become "nothing was played".
+    """
+    alias = {
+        "3xc": "tc", "tc": "tc",
+        "bboost": "bb", "bb": "bb",
+        "freehit": "fh", "fh": "fh",
+        "wildcard": "wc", "wc": "wc",
+    }
+    out = []
+    for c in ((history or {}).get("chips") or []):
+        name = c.get("name") if isinstance(c, dict) else c
+        key = alias.get(str(name).strip().lower())
+        if key:
+            out.append(key)
+    return tuple(dict.fromkeys(out))
+
+
+def reconcile_chips(declared, played):
+    """Where `chips_used` disagrees with the entry's actual history.
+
+    Returns (missing, surplus): chips played but not declared, and chips
+    declared but not played. The first is the dangerous one — it is the case
+    that had the sweep recommending a Triple Captain already spent.
+    """
+    declared, played = set(declared or ()), set(played or ())
+    return tuple(sorted(played - declared)), tuple(sorted(declared - played))
+
+
+def chip_windows(gws, spent=()):
     """Which gameweeks each chip may legally be played in.
 
     The first set of chips expires at the GW19 deadline, so a plan that saves
     Bench Boost for GW21 while still holding a first-half chip is not late —
-    it is impossible.
+    it is impossible. A chip already spent has no window at all.
     """
     return {
         chip: [g for g in gws if g <= FIRST_HALF_LAST_GW]
         for chip in CHIP_NAMES
+        if chip not in spent
     }
 
 
@@ -438,18 +490,26 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
     settles an argument about a chip week.
     """
     steps, missing = from_config(cfg, proj, gws)
-    result = evaluate(steps, proj, squad_ids, bank, first_ft, gws, sell)
+    spent, unknown = chips_used(cfg)
+    result = evaluate(steps, proj, squad_ids, bank, first_ft, gws, sell,
+                      chips_used_before=spent)
 
     placed = {s.get("chip") for s in steps.values() if s.get("chip")}
     sweeps = {}
     for chip in CHIP_NAMES:
+        # A chip already played is not a decision. Sweeping it produces a
+        # recommendation the manager cannot act on, which is worse than
+        # silence: the GW8 Triple Captain it suggested was worth 9.3 points
+        # and did not exist.
+        if chip in spent:
+            continue
         ranked = sweep_chip(chip, steps, proj, squad_ids, bank, first_ft, gws, sell)
         if not ranked:
             continue
         current = next((g for g, s in steps.items() if s.get("chip") == chip), None)
         best = ranked[0]
         here = next((r["gain"] for r in ranked if r["gw"] == current), None)
-        sweeps[chip] = {
+        entry = {
             "name": CHIP_NAMES[chip],
             "ranked": ranked[:6],
             "current_gw": current,
@@ -458,12 +518,43 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
             "gain_here": here,
             "move_gain": None if here is None else round(best["gain"] - here, 2),
             "placed": chip in placed,
+            "valued": True,
         }
+
+        # Wildcard and Free Hit are worth only the players they let you change,
+        # and the sweep moves the chip's label between weeks without moving any
+        # transfers. Their gain is therefore identically zero in every week —
+        # not a tie to be broken, an answer that was never computed. Reporting
+        # it as `best_gw` with a gain of 0.0 reads as a recommendation, and the
+        # first week in the list silently becomes "the best week".
+        #
+        # Valuing them properly means re-drafting the squad for each candidate
+        # week, which is what wildcard.py does once over a 168-player pool in
+        # three minutes. Doing it per week per chip inside the sweep is a
+        # different order of cost, so it is declared unvalued instead of
+        # guessed at.
+        if chip in UNLIMITED:
+            entry.update(
+                valued=False,
+                ranked=[{"gw": r["gw"], "gain": None} for r in ranked[:6]],
+                best_gw=None, best_gain=None, gain_here=None, move_gain=None,
+                note=(f"{CHIP_NAMES[chip]} is not priced by the sweep: its "
+                      "value is the squad it buys, and the sweep holds the "
+                      "squad fixed. Compare drafts instead "
+                      "(--wildcard N per candidate week)."),
+            )
+
+        sweeps[chip] = entry
 
     return {
         "plan": result.as_dict(),
         "steps": {g: dict(s) for g, s in steps.items()},
-        "unresolved": missing,
+        "unresolved": missing + [
+            f'"{name}" in chips_used is not an FPL chip. Use one of: '
+            + ", ".join(sorted(CHIP_NAMES)) + "."
+            for name in unknown
+        ],
+        "chips_used": list(spent),
         "chips": sweeps,
         "horizon": {"from": gws[0], "to": gws[-1]},
         "solver_total": solver_total,

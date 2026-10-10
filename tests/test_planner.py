@@ -430,3 +430,100 @@ def test_grade_surfaces_names_it_could_not_resolve():
     cfg = {"my_plan": {5: {"out": ["Nobody"], "in": ["M108"]}}}
     g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
     assert any("Nobody" in u for u in g["unresolved"])
+
+
+# --- chips already played ------------------------------------------------
+#
+# FPL's public API does not expose which chips an entry has spent, so it is
+# declared in config. Before `chips_used` was wired through, the sweep offered
+# every chip every week regardless — including ones already played, which is a
+# recommendation the manager cannot act on.
+
+
+def test_a_spent_chip_is_not_swept():
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    cfg = {"chips_used": ["tc"]}
+    g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
+    assert "tc" not in g["chips"], "a chip already played is not a decision"
+    assert "bb" in g["chips"], "the chips still held are still swept"
+    assert g["chips_used"] == ["tc"]
+
+
+def test_planning_a_spent_chip_is_a_violation():
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    cfg = {"chips_used": ["tc"], "chip_plan": {"tc": 6}}
+    g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
+    codes = [v["code"] for v in g["plan"]["violations"]]
+    assert "chip-spent" in codes, "a stale chip_plan entry must be reported"
+
+
+def test_a_typo_in_chips_used_is_reported_not_ignored():
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    cfg = {"chips_used": ["triple_captain"]}
+    g = grade(cfg, proj, squad_ids(), 0.0, 1, gws)
+    assert any("triple_captain" in u for u in g["unresolved"])
+    # Silently reading it as "nothing spent" is the failure mode: the sweep
+    # would then offer a chip that is gone.
+    assert g["chips_used"] == []
+
+
+def test_a_spent_chip_has_no_window():
+    windows = chip_windows(list(range(15, 25)), spent=("wc",))
+    assert "wc" not in windows
+    assert max(windows["bb"]) == 19
+
+
+def test_wildcard_and_free_hit_are_declared_unvalued_not_zero():
+    """The sweep moves a chip's label, never its transfers.
+
+    So wc and fh gain exactly nothing in every week, and printing that as
+    `best_gw` with gain 0.0 turns the first week of a tie into a confident
+    recommendation about the single biggest decision in the game.
+    """
+    gws = [5, 6, 7]
+    proj = make_proj(gws)
+    g = grade({}, proj, squad_ids(), 0.0, 1, gws)
+
+    for chip in ("wc", "fh"):
+        entry = g["chips"][chip]
+        assert entry["valued"] is False
+        assert entry["best_gw"] is None, "an unvalued chip names no best week"
+        assert entry["best_gain"] is None
+        assert all(r["gain"] is None for r in entry["ranked"])
+        assert "squad" in entry["note"]
+
+    bb = g["chips"]["bb"]
+    assert bb["valued"] is True, "bench boost is genuinely priced"
+    assert bb["best_gw"] in gws
+
+
+# --- chips read from the entry's own history ------------------------------
+
+
+def test_chips_played_maps_fpl_names():
+    from gaffer.planner import chips_played
+    hist = {"chips": [{"name": "3xc", "event": 4}, {"name": "bboost", "event": 2}]}
+    assert chips_played(hist) == ("tc", "bb")
+
+
+def test_chips_played_drops_names_it_cannot_map():
+    from gaffer.planner import chips_played
+    # Silently reading an unknown chip as "nothing played" is the dangerous
+    # direction, so it must not appear as a known chip either.
+    assert chips_played({"chips": [{"name": "manager"}]}) == ()
+    assert chips_played({}) == ()
+    assert chips_played(None) == ()
+
+
+def test_reconcile_chips_finds_the_one_you_forgot_to_declare():
+    from gaffer.planner import reconcile_chips
+    missing, surplus = reconcile_chips(declared=(), played=("tc",))
+    assert missing == ("tc",) and surplus == ()
+
+    missing, surplus = reconcile_chips(declared=("tc", "wc"), played=("tc",))
+    assert missing == () and surplus == ("wc",)
+
+    assert reconcile_chips(("tc",), ("tc",)) == ((), ())

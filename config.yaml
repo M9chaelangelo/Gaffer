@@ -12,7 +12,20 @@ min_transfer_gain: 1.5    # a transfer must beat this to be recommended; wildcar
 # who can spike, on top of his expected points. Small on purpose: it breaks ties
 # between comparable captains, it does not overrule the projection. Set 0 to
 # choose the armband on expected points alone.
-ceiling_weight: 6.0
+# Set to 0 on 10 Oct 2026 because the ceiling model is not calibrated. Its AUC
+# is 0.849, which is respectable — but AUC is rank-based and says nothing about
+# whether the numbers are probabilities, and this consumer multiplies the
+# probability directly. In the GW6 solve B.Fernandes read 0.705 against a median
+# of 0.019 and a mean of 0.028, a ~25-sigma outlier, while Haaland — the single
+# likeliest hauler in the game — read 0.11, below Dibling and Rice. Several of
+# the highest-ceiling players were projected for ~0 points, so it is not
+# conditioning on minutes either.
+#
+# At weight 6.0 that handed B.Fernandes about +4.2 points of armband preference
+# from a broken number. Restore it to 6.0 once `ceiling` is wrapped in a
+# calibrator (Platt or isotonic) and scores.json records calibration error
+# alongside AUC.
+ceiling_weight: 0.0
 max_chips_in_horizon: 2          # only recommend a hit if it gains this much over the horizon
 bench_weights: [0.16, 0.11, 0.06, 0.02]
 
@@ -62,19 +75,58 @@ elite_sample: 100      # how many of the world's top managers to sample
 # can only be wrong from here, and a wildcard drafted against the wrong
 # fifteen is drafted against the wrong budget. Put it back the moment you make
 # a transfer for a deadline that has not passed yet.
-# current_squad:
-#   - Lammens
-#   ...
-# bank: 1.4
+# Pinned from the manager's own GW6 Transfers screen, 10 Oct 08:35 UTC. The API
+# read (entry/3907632/event/5/picks) returned a materially different fifteen —
+# only Rogers, Joao Pedro and Haaland overlap — so one of the two is not this
+# team. The screen the manager is looking at wins; a wildcard drafted against
+# the wrong fifteen is drafted against the wrong budget and the wrong sells.
+# Worth resolving before next week: see RUNBOOK.md.
+#
+# Prices here are SELLING prices as the Transfers page shows them, which is what
+# the budget is actually made of.
+current_squad:
+  - Leno          # 4.5  IPS (A)
+  - Kelleher      # 5.0  AVL (A)
+  - Robinson      # 4.5  IPS (A)  flagged 
+  - Greaves       # 3.9  FUL (H)
+  - Konsa         # 4.6  LEE (H)  flagged
+  - Ballard       # 4.9  BHA (H)  RED flag
+  - Hill          # 5.5  CHE (A)
+  - Crooks        # 4.4  EVE (H)
+  - Rogers        # 7.7  BOU (H)
+  - Saka          # 9.5  LEE (H)
+  - Palmer        # 9.7  BOU (H)
+  - Groß          # 5.8  SUN (A)
+  - Haaland       # 15.5 LIV (A)
+  - Gonzalo       # 6.0  IPS (A)
+  - João Pedro    # 7.6  BOU (H)
+bank: 0.4
+
+# Zero free transfers this week — every move in GW6 costs 4. Declared because
+# the public API does not expose it.
+free_transfers: 0
 
 # --- locked chip plan --------------------------------------------------------
 # Gameweeks you have committed to. The solver stops re-deciding these every week
 # and plans around them instead. Remove a line to hand that chip back to it.
 # One chip per gameweek — the solver enforces that, so do not double-book.
+# Chips already played this half. FPL's public API does not expose this, so it
+# is declared here for the same reason free_transfers is. Get it wrong and the
+# report recommends a chip you do not have — which is how a GW8 Triple Captain
+# worth 9.3 points got suggested for a chip that was already spent.
+chips_used: [tc]
+
 chip_plan:
-  tc: 7      # Triple Captain — Haaland home to Ipswich, 13.9 projected vs 9.0 in GW3
-  wc: 6      # Wildcard, 10 Oct, first week after the international break
-  bb: 9      # Bench Boost — see notes; GW7 clashes with the best Haaland fixture
+  # Triple Captain is SPENT — it is no longer a decision and must not be planned.
+  # Leaving `tc` here had the solver building around a chip that does not exist.
+  wc: 7      # Wildcard, 17 Oct. GW6 was the break week, but the fixture swing
+             # lands at GW7 (Bournemouth and Spurs improve, Fulham start
+             # Hull/Coventry, City host Ipswich) and GW6's team news is
+             # unresolved — Joao Pedro is due back 17 Oct, Isak and Gakpo out.
+  bb: 9      # Bench Boost. Held two weeks after the rebuild so the drafted
+             # fifteen is known-fit before it is spent.
+  # Free Hit is deliberately unset. There are no blanks before the GW19 expiry,
+  # so there is no week it obviously belongs in — let the chip sweep price it.
 
 # --- the rebuild -------------------------------------------------------------
 # A wildcard gets its own solve, because it is a different question from a
