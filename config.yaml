@@ -120,7 +120,10 @@ wildcard_time_limit: 180   # seconds
 # Names you want in or out of the rebuild whatever the model thinks. This is
 # the argument, not the override — every forced pick costs points, and the
 # report prints what it cost.
-# wildcard_keep: [Haaland]
+# Saka and Joao Pedro are downgrades on a straight swap (Stach -2.0, Emersonn
+# -5.0 over the horizon); the solver only drops them to free money. Forcing
+# them back keeps two elite-owned assets and the report prints what it cost.
+wildcard_keep: [Saka, João Pedro]
 # wildcard_ban: []
 
 # --- your own plan -----------------------------------------------------------
