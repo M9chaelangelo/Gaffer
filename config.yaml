@@ -12,7 +12,20 @@ min_transfer_gain: 1.5    # a transfer must beat this to be recommended; wildcar
 # who can spike, on top of his expected points. Small on purpose: it breaks ties
 # between comparable captains, it does not overrule the projection. Set 0 to
 # choose the armband on expected points alone.
-ceiling_weight: 6.0
+# Set to 0 on 10 Oct 2026 because the ceiling model is not calibrated. Its AUC
+# is 0.849, which is respectable — but AUC is rank-based and says nothing about
+# whether the numbers are probabilities, and this consumer multiplies the
+# probability directly. In the GW6 solve B.Fernandes read 0.705 against a median
+# of 0.019 and a mean of 0.028, a ~25-sigma outlier, while Haaland — the single
+# likeliest hauler in the game — read 0.11, below Dibling and Rice. Several of
+# the highest-ceiling players were projected for ~0 points, so it is not
+# conditioning on minutes either.
+#
+# At weight 6.0 that handed B.Fernandes about +4.2 points of armband preference
+# from a broken number. Restore it to 6.0 once `ceiling` is wrapped in a
+# calibrator (Platt or isotonic) and scores.json records calibration error
+# alongside AUC.
+ceiling_weight: 0.0
 max_chips_in_horizon: 2          # only recommend a hit if it gains this much over the horizon
 bench_weights: [0.16, 0.11, 0.06, 0.02]
 
