@@ -1,0 +1,21 @@
+name: ucl-probe
+# Finds UEFA's UCL Fantasy endpoints from a runner that has network access,
+# because the assistant's own container does not. Dispatch only — it hits
+# third-party URLs and there is no reason to do that on a schedule.
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: probe UEFA endpoints
+        run: python -m gaffer.ucl.probe || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ucl-probe
+          path: probe.json
+          if-no-files-found: warn
