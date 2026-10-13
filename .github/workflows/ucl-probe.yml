@@ -19,9 +19,17 @@ jobs:
         with:
           python-version: "3.12"
       - name: probe UEFA endpoints
-        run: python -m gaffer.ucl.probe || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ucl-probe
-          path: probe.json
-          if-no-files-found: warn
+        run: python -m gaffer.ucl.probe | tee gaffer/ucl/probe.txt || true
+      - name: commit the findings
+        # An artifact is useless to a reader without network: gh refuses the
+        # redirect to blob storage and the container cannot reach it either.
+        # Committing puts the answer somewhere a git pull can read it, which is
+        # the same reason the solve commits its own output.
+        run: |
+          mv -f probe.json gaffer/ucl/probe.json 2>/dev/null || true
+          git config user.name gaffer
+          git config user.email gaffer@users.noreply.github.com
+          git add gaffer/ucl/probe.json gaffer/ucl/probe.txt
+          git diff --staged --quiet || git commit -m "ucl probe: $(date -u +%F\ %H:%M)"
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME" || true
+          git push origin HEAD:"$GITHUB_REF_NAME"
