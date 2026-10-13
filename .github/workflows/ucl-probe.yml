@@ -1,9 +1,15 @@
 name: ucl-probe
 # Finds UEFA's UCL Fantasy endpoints from a runner that has network access,
-# because the assistant's own container does not. Dispatch only — it hits
-# third-party URLs and there is no reason to do that on a schedule.
+# because the assistant's own container does not. Never on a schedule — it hits
+# third-party URLs and there is no reason to do that repeatedly.
+# Push-triggered too: GitHub only registers workflow_dispatch once the file is
+# on the default branch, and a probe that exists to inform what we merge
+# cannot wait for the merge.
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/ucl-support]
+    paths: ['gaffer/ucl/**', '.github/workflows/ucl-probe.yml']
 jobs:
   probe:
     runs-on: ubuntu-latest
