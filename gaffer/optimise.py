@@ -30,9 +30,17 @@ def rivalry_weight(pid, pack_own, rivalry):
 
 
 def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
-         pack_own=None, chips_available=("wc", "tc", "bb", "fh"),
+         pack_own=None, chips_available=None,
          force_no_transfer_gws=(), force_wc_gw=None, calendar=None,
          force_chip=None):
+    # A chip already played is not a decision. The sweep learned this; the
+    # solver had not, and went on planning a Wildcard in GW8 that was spent in
+    # GW6 — which quietly costs you every week the solver reserves for it.
+    # Defaults to what config says is left rather than to all four.
+    if chips_available is None:
+        spent = {str(x).strip().lower() for x in (cfg.get("chips_used") or ())}
+        chips_available = tuple(c for c in ("wc", "tc", "bb", "fh")
+                                if c not in spent)
     pack_own = pack_own or {}
     rivalry = cfg.get("rivalry", 0.0)
     decay = cfg.get("decay", 0.87)

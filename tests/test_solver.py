@@ -187,3 +187,22 @@ def test_a_real_solve_survives_pulp_4(monkeypatch):
 
     assert solver.solve(m, 10) == "Optimal"
     assert a.value() == 1 and b.value() == 2
+
+
+def test_solver_never_plans_a_chip_already_played():
+    """The sweep honoured chips_used; the solver did not.
+
+    On 13 Oct it planned a Wildcard in GW8 for an entry that had played it in
+    GW6 — and a week the solver reserves for a chip that cannot be played is a
+    week it declines to use for anything real.
+    """
+    import inspect
+    from gaffer import optimise
+
+    sig = inspect.signature(optimise.plan)
+    assert sig.parameters["chips_available"].default is None, (
+        "chips_available must default to config, not to all four chips"
+    )
+
+    src = inspect.getsource(optimise.plan)
+    assert 'cfg.get("chips_used"' in src, "plan() must read chips_used from config"
