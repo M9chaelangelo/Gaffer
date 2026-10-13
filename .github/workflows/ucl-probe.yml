@@ -19,7 +19,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: probe UEFA endpoints
-        run: python -m gaffer.ucl.probe | tee gaffer/ucl/probe.txt || true
+        run: |
+          python -m gaffer.ucl.probe | tee gaffer/ucl/probe.txt || true
+          python -m gaffer.ucl.snapshot 2 | tee gaffer/ucl/snapshot.txt || true
       - name: commit the findings
         # An artifact is useless to a reader without network: gh refuses the
         # redirect to blob storage and the container cannot reach it either.
@@ -29,7 +31,8 @@ jobs:
           mv -f probe.json gaffer/ucl/probe.json 2>/dev/null || true
           git config user.name gaffer
           git config user.email gaffer@users.noreply.github.com
-          git add gaffer/ucl/probe.json gaffer/ucl/probe.txt
+          git add gaffer/ucl/probe.json gaffer/ucl/probe.txt \
+                  gaffer/ucl/snapshot.json gaffer/ucl/snapshot.txt
           git diff --staged --quiet || git commit -m "ucl probe: $(date -u +%F\ %H:%M)"
           git pull --rebase --autostash origin "$GITHUB_REF_NAME" || true
           git push origin HEAD:"$GITHUB_REF_NAME"
