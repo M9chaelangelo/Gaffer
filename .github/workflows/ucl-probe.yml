@@ -7,6 +7,11 @@ name: ucl-probe
 # cannot wait for the merge.
 on:
   workflow_dispatch:
+    inputs:
+      matchday:
+        description: "Matchday to snapshot"
+        required: false
+        default: "2"
   push:
     branches: [claude/ucl-support]
     paths: ['gaffer/ucl/**', '.github/workflows/ucl-probe.yml']
@@ -20,8 +25,9 @@ jobs:
           python-version: "3.12"
       - name: probe UEFA endpoints
         run: |
-          python -m gaffer.ucl.probe | tee gaffer/ucl/probe.txt || true
-          python -m gaffer.ucl.snapshot 2 | tee gaffer/ucl/snapshot.txt || true
+          python -m gaffer.ucl.snapshot "${MATCHDAY:-2}" | tee gaffer/ucl/snapshot.txt || true
+        env:
+          MATCHDAY: ${{ github.event.inputs.matchday }}
       - name: commit the findings
         # An artifact is useless to a reader without network: gh refuses the
         # redirect to blob storage and the container cannot reach it either.
@@ -31,8 +37,10 @@ jobs:
           mv -f probe.json gaffer/ucl/probe.json 2>/dev/null || true
           git config user.name gaffer
           git config user.email gaffer@users.noreply.github.com
-          git add gaffer/ucl/probe.json gaffer/ucl/probe.txt \
-                  gaffer/ucl/snapshot.json gaffer/ucl/snapshot.txt
+          # -A over a directory: `git add` on a path that does not exist is
+          # fatal under `bash -e`, so a step that failed earlier took the whole
+          # job down and hid its own error.
+          git add -A gaffer/ucl/
           git diff --staged --quiet || git commit -m "ucl probe: $(date -u +%F\ %H:%M)"
           git pull --rebase --autostash origin "$GITHUB_REF_NAME" || true
           git push origin HEAD:"$GITHUB_REF_NAME"

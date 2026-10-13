@@ -34,7 +34,7 @@ REQUIRED = ("id", "pDName", "skill", "value", "tName", "tId", "selPer",
             "totPts", "minsPlyd", "gS", "assist", "bR", "upcomingMatchesList")
 
 
-def _get(url, tries=3, timeout=45):
+def _get(url, tries=3, timeout=120):
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA)
@@ -67,10 +67,17 @@ def _num(v, default=0.0):
         return default
 
 
-def players(gameday):
-    """Normalised player records, one per player."""
+def players(gameday=None, rows=None):
+    """Normalised player records, one per player.
+
+    Pass `rows` to reuse a payload already fetched. The feed is 2MB and the
+    first version of this pulled it four times in one run, which is how the
+    snapshot step ended in a read timeout.
+    """
+    if rows is None:
+        rows = raw_players(gameday)
     out = []
-    for r in raw_players(gameday):
+    for r in rows:
         pos = POS.get(int(_num(r.get("skill"), 0)))
         if not pos:
             continue

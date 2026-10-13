@@ -13,8 +13,9 @@ from . import fetch
 
 
 def main(matchday=2):
-    rows = fetch.players(matchday)
-    problems = fetch.verify(fetch.raw_players(matchday))
+    raw = fetch.raw_players(matchday)          # one fetch, two uses
+    problems = fetch.verify(raw)
+    rows = fetch.players(rows=raw)
     fx = fetch.fixtures(rows, matchday)
 
     if problems:
