@@ -1,0 +1,87 @@
+{
+ "ok": [],
+ "all": [
+  {
+   "url": "https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=1&language=en",
+   "status": 200,
+   "ms": 455,
+   "content_type": "application/json; charset=utf-8",
+   "bytes": 200000,
+   "parsed": false,
+   "head": "{\"data\":{\"value\":{\"playerList\":[{\"id\":\"250103758\",\"pDName\":\"E. Haaland\",\"pDNameRu\":\"\u0425\u043e\u043b\u0430\u043d\u043d\",\"pFName\":\"Erling Haaland\",\"latinName\":\"Erling Haaland\",\"tName\":\"Man City\",\"tId\":\"52919\",\"teamPlayed\":0,\"minsPlyd\":90,\"mTransferIn\":24202,\"mTransferOut\":20050,\"rating\":4.5,\"cCode\":\"MCI\",\"skill\":4,\"value\""
+  },
+  {
+   "url": "https://gaming.uefa.com/en/uclfantasy/services/api/Feed/matches?gamedayId=1&language=en",
+   "status": null,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+   "url": "https://gaming.uefa.com/en/uclfantasy/services/api/feed/players?optType=2&gamedayId=1",
+   "status": 200,
+   "ms": 507,
+   "content_type": "application/json; charset=utf-8",
+   "bytes": 200000,
+   "parsed": false,
+   "head": "{\"data\":{\"value\":{\"playerList\":[{\"id\":\"250076574\",\"pDName\":\"K. Mbapp\u00e9\",\"pDNameRu\":\"\u041c\u0431\u0430\u043f\u043f\u0435\",\"pFName\":\"Kylian Mbapp\u00e9\",\"latinName\":\"Kylian Mbappe\",\"tName\":\"Real Madrid\",\"tId\":\"50051\",\"teamPlayed\":1,\"minsPlyd\":89,\"mTransferIn\":52366,\"mTransferOut\":40543,\"rating\":5.0,\"cCode\":\"RMA\",\"skill\":4,\"valu"
+  },
+  {
+   "url": "https://gaming.uefa.com/en/uclfantasy/services/api/Feed/gamedays?language=en",
+   "status": null,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+   "url": "https://gaming.uefa.com/en/uclfantasy/services/api/feed/competition?language=en",
+   "status": null,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+   "url": "https://gaming.uefa.com/en/uclfantasyfootball/services/api/Feed/players?gamedayId=1&language=en",
+   "status": 200,
+   "ms": 255,
+   "content_type": "text/html",
+   "bytes": 29421,
+   "parsed": false,
+   "head": "<!doctype html><html lang=\"en\" dir=\"ltr\"><head><link rel=\"icon\" type=\"image/x-icon\" href=\"https://gaming.uefa.com/favicons/ucl/favicon.ico?v1\"/><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge,chrome=1\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta"
+  },
+  {
+   "url": "https://gamingapi.uefa.com/v2/games/1/players?gamedayId=1",
+   "status": null,
+   "error": "URLError: <urlopen error [Errno -5] No address associated with hostname>"
+  },
+  {
+   "url": "https://gamingapi.uefa.com/v2/games/1/gamedays",
+   "status": null,
+   "error": "URLError: <urlopen error [Errno -5] No address associated with hostname>"
+  },
+  {
+   "url": "https://match.uefa.com/v5/matches?competitionId=1&seasonYear=2027&limit=5",
+   "status": null,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+   "url": "https://matchstats.uefa.com/v1/team-statistics?competitionId=1&seasonYear=2027",
+   "status": null,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+   "url": "https://comp-stats.uefa.com/v1/player-ranking?competitionId=1&seasonYear=2027&limit=5",
+   "status": null,
+   "error": "URLError: <urlopen error [Errno -5] No address associated with hostname>"
+  },
+  {
+   "url": "https://comp-stats.uefa.com/v1/players?competitionId=1&seasonYear=2027&limit=5",
+   "status": null,
+   "error": "URLError: <urlopen error [Errno -5] No address associated with hostname>"
+  },
+  {
+   "url": "https://compstats.uefa.com/v1/player-ranking?competitionId=1&seasonYear=2027&limit=5",
+   "status": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request"
+  },
+  {
+   "url": "https://api.uefa.com/v1/competitions",
+   "status": null,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  }
+ ]
+}

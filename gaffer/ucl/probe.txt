@@ -1,0 +1,17 @@
+
+0 of 14 candidates returned parseable JSON
+
+   200 https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=1&language=en
+   ERR https://gaming.uefa.com/en/uclfantasy/services/api/Feed/matches?gamedayId=1&language=en  HTTPError: HTTP Error 404: Not Found
+   200 https://gaming.uefa.com/en/uclfantasy/services/api/feed/players?optType=2&gamedayId=1
+   ERR https://gaming.uefa.com/en/uclfantasy/services/api/Feed/gamedays?language=en  HTTPError: HTTP Error 404: Not Found
+   ERR https://gaming.uefa.com/en/uclfantasy/services/api/feed/competition?language=en  HTTPError: HTTP Error 404: Not Found
+   200 https://gaming.uefa.com/en/uclfantasyfootball/services/api/Feed/players?gamedayId=1&language=en
+   ERR https://gamingapi.uefa.com/v2/games/1/players?gamedayId=1  URLError: <urlopen error [Errno -5] No address associated with hostname>
+   ERR https://gamingapi.uefa.com/v2/games/1/gamedays  URLError: <urlopen error [Errno -5] No address associated with hostname>
+   ERR https://match.uefa.com/v5/matches?competitionId=1&seasonYear=2027&limit=5  HTTPError: HTTP Error 404: Not Found
+   ERR https://matchstats.uefa.com/v1/team-statistics?competitionId=1&seasonYear=2027  HTTPError: HTTP Error 404: Not Found
+   ERR https://comp-stats.uefa.com/v1/player-ranking?competitionId=1&seasonYear=2027&limit=5  URLError: <urlopen error [Errno -5] No address associated with hostname>
+   ERR https://comp-stats.uefa.com/v1/players?competitionId=1&seasonYear=2027&limit=5  URLError: <urlopen error [Errno -5] No address associated with hostname>
+   ERR https://compstats.uefa.com/v1/player-ranking?competitionId=1&seasonYear=2027&limit=5  HTTPError: HTTP Error 400: Bad Request
+   ERR https://api.uefa.com/v1/competitions  HTTPError: HTTP Error 404: Not Found
