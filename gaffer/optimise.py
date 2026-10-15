@@ -6,7 +6,7 @@ Solving week by week is what makes people take hits they regret.
 """
 import pulp
 
-from . import solver, timing
+from . import planner, solver, timing
 
 SQUAD = {"GKP": 2, "DEF": 5, "MID": 5, "FWD": 3}
 XI_MIN = {"GKP": 1, "DEF": 3, "MID": 2, "FWD": 1}
@@ -30,9 +30,17 @@ def rivalry_weight(pid, pack_own, rivalry):
 
 
 def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
-         pack_own=None, chips_available=("wc", "tc", "bb", "fh"),
+         pack_own=None, chips_available=None,
          force_no_transfer_gws=(), force_wc_gw=None, calendar=None,
          force_chip=None):
+    # A chip already played is not a decision. The sweep learned this; the
+    # solver had not, and went on planning a Wildcard in GW8 that was spent in
+    # GW6 — which quietly costs you every week the solver reserves for it.
+    # Defaults to what config says is left rather than to all four.
+    if chips_available is None:
+        spent = {str(x).strip().lower() for x in (cfg.get("chips_used") or ())}
+        chips_available = tuple(c for c in ("wc", "tc", "bb", "fh")
+                                if c not in spent)
     pack_own = pack_own or {}
     rivalry = cfg.get("rivalry", 0.0)
     decay = cfg.get("decay", 0.87)
@@ -200,9 +208,25 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
 
     out = []
     for g in gws:
-        xi = sorted([P[i] for i in P if y[(i, g)].value() > 0.5],
-                    key=lambda p: (-p["ep"][g]))
+        boosted = bb[g].value() > 0.5
+        squad_g = [i for i in P if x[(i, g)].value() > 0.5]
         cap = next(P[i] for i in P if c[(i, g)].value() > 0.5)
+        if boosted:
+            # Under Bench Boost all fifteen score, so the eleven/bench split
+            # does not change the total and the solver returns an arbitrary
+            # one. On 15 Oct it benched the squad's second- and third-best
+            # players. That costs nothing in the model and everything to a
+            # reader, who sees a team sheet. Re-derive the eleven the way it
+            # would be picked without the chip, so the row is still a lineup
+            # if the chip is not played after all.
+            pick = planner.best_xi(squad_g, P, g)
+            xi = [P[i] for i in pick["xi"]]
+            bench = [P[i] for i in pick["bench"]]
+        else:
+            xi = sorted([P[i] for i in P if y[(i, g)].value() > 0.5],
+                        key=lambda p: (-p["ep"][g]))
+            bench = [P[i] for i in P if x[(i, g)].value() > 0.5
+                     and y[(i, g)].value() < 0.5]
         # Carry the players themselves, not their names. Two players can share
         # a web name (there are two Palmers), and pairing a wildcard's thirteen
         # moves by list order produces nonsense like a midfielder "replacing" a
@@ -220,10 +244,13 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
                      "Triple Captain" if tc[g].value() > 0.5 else
                      "Bench Boost" if bb[g].value() > 0.5 else None),
             "xi": xi,
-            "bench": [P[i] for i in P if x[(i, g)].value() > 0.5
-                      and y[(i, g)].value() < 0.5],
+            "bench": bench,
             "captain": cap,
-            "ep": round(sum(p["ep"][g] for p in xi) + cap["ep"][g], 1),
+            # A Bench Boost week scores all fifteen. Summing the eleven alone
+            # understated GW7 by 22.3 points on 15 Oct and printed the chip
+            # week as the worst of the five, which is the opposite of true.
+            "ep": round(sum(p["ep"][g] for p in (xi + bench if boosted else xi))
+                        + cap["ep"][g], 1),
         })
     return out
 
