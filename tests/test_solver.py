@@ -206,3 +206,24 @@ def test_solver_never_plans_a_chip_already_played():
 
     src = inspect.getsource(optimise.plan)
     assert 'cfg.get("chips_used"' in src, "plan() must read chips_used from config"
+
+
+def test_bench_boost_week_reports_all_fifteen_and_a_real_eleven():
+    """Two defects that appeared together in the GW7 solve of 15 Oct 2026.
+
+    The week's `ep` summed the eleven only, so the Bench Boost week printed
+    60.2 against a true 82.5 and read as the WORST of the five weeks when it
+    was the best. And because every one of the fifteen scores under the chip,
+    the solver was indifferent to the split and returned an arbitrary one —
+    it benched Gross (7.42) and B.Fernandes (5.92) to start Schade (2.64, a
+    shoulder injury). Harmless to the model, ruinous to a reader who takes the
+    row for a team sheet.
+    """
+    import inspect
+    from gaffer import optimise
+
+    src = inspect.getsource(optimise.plan)
+    assert "xi + bench if boosted else xi" in src, \
+        "a Bench Boost week must score the bench too"
+    assert "planner.best_xi(squad_g" in src, \
+        "a Bench Boost week must still report a real eleven"
