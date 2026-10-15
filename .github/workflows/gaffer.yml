@@ -74,4 +74,8 @@ jobs:
           git config user.email gaffer@users.noreply.github.com
           git add docs models
           git diff --staged --quiet || git commit -m "gaffer: $(date -u +%F)"
+          # Rebase before pushing. A concurrent push to the same branch used to
+          # fail this step AFTER a five-minute solve had succeeded, and the
+          # output was thrown away. Happened on 10 Oct 2026.
+          git pull --rebase --autostash origin "$(git rev-parse --abbrev-ref HEAD)"
           git push
