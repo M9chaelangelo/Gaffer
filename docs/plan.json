@@ -1,6 +1,6 @@
 {
  "gw": 7,
- "generated": "2026-10-15T13:50:37.004040+00:00",
+ "generated": "2026-10-15T13:58:23.790764+00:00",
  "weeks": [
   {
    "gw": 7,
@@ -12,7 +12,7 @@
    ],
    "hits": 0,
    "chip": "Bench Boost",
-   "ep": 60.2
+   "ep": 82.5
   },
   {
    "gw": 8,
@@ -61,7 +61,7 @@
    "ep": 83.2
   }
  ],
- "hit_verdict": "Taking a hit gains about -6.7 points over 5 gameweeks. Not worth it \u2014 the bar is 6.0. Roll the transfer instead.",
+ "hit_verdict": "Taking a hit gains about 0.0 points over 5 gameweeks. Not worth it \u2014 the bar is 6.0. Roll the transfer instead.",
  "gems": [
   {
    "name": "Semenyo",
@@ -234,7 +234,7 @@
      "Highest projection in your eleven at 9.0 points, against IPS(H).",
      "0.82 expected goals per 90 with 25% of his team's attack running through him.",
      "Hauls \u2014 10+ points \u2014 in 8% of weeks like this one.",
-     "Semenyo actually has the higher ceiling (13% against 8%) but projects 6.5 to his 9.0 \u2014 worth the armband only if you need variance rather than points."
+     "B.Fernandes actually has the higher ceiling (69% against 8%) but projects 5.9 to his 9.0 \u2014 worth the armband only if you need variance rather than points."
     ]
    },
    "transfers": [
@@ -271,7 +271,7 @@
       "own_elite": 0.13,
       "own_overall": 0.16699999999999998,
       "price_direction": "hold",
-      "net_transfers": -51676,
+      "net_transfers": -51683,
       "status": "a",
       "news": ""
      },
@@ -307,7 +307,7 @@
       "own_elite": 0.13,
       "own_overall": 0.138,
       "price_direction": "hold",
-      "net_transfers": 24028,
+      "net_transfers": 24158,
       "status": "a",
       "news": ""
      },
@@ -383,7 +383,7 @@
       "own_elite": 0.31,
       "own_overall": 0.149,
       "price_direction": "fall",
-      "net_transfers": -100657,
+      "net_transfers": -100950,
       "status": "d",
       "news": "Shoulder injury - 75% chance of playing"
      },
@@ -419,7 +419,7 @@
       "own_elite": 0.21,
       "own_overall": 0.057999999999999996,
       "price_direction": "hold",
-      "net_transfers": 32825,
+      "net_transfers": 32898,
       "status": "a",
       "news": ""
      },
@@ -428,7 +428,7 @@
       "Leverage: 30% of the teams above you own the man you are selling, 0% own the one you are buying. You gain ground when he returns.",
       "The world's best managers are ahead of the crowd on him: 21% elite ownership against 6% overall.",
       "The man leaving is flagged: Shoulder injury - 75% chance of playing.",
-      "He is also falling in price (-100,657 net transfers), so holding costs team value too."
+      "He is also falling in price (-100,950 net transfers), so holding costs team value too."
      ]
     }
    ]
@@ -480,7 +480,7 @@
       "own_elite": 0.02,
       "own_overall": 0.025,
       "price_direction": "hold",
-      "net_transfers": -345,
+      "net_transfers": -343,
       "status": "a",
       "news": ""
      },
@@ -516,7 +516,7 @@
       "own_elite": null,
       "own_overall": 0.065,
       "price_direction": "hold",
-      "net_transfers": 38814,
+      "net_transfers": 38851,
       "status": "a",
       "news": ""
      },
@@ -557,7 +557,7 @@
       "own_elite": 0.99,
       "own_overall": 0.7,
       "price_direction": "rise",
-      "net_transfers": 410423,
+      "net_transfers": 410899,
       "status": "a",
       "news": ""
      },
@@ -593,7 +593,7 @@
       "own_elite": 0.01,
       "own_overall": 0.039,
       "price_direction": "hold",
-      "net_transfers": -14707,
+      "net_transfers": -14753,
       "status": "a",
       "news": ""
      },
@@ -655,7 +655,7 @@
       "own_elite": null,
       "own_overall": 0.065,
       "price_direction": "hold",
-      "net_transfers": 38814,
+      "net_transfers": 38851,
       "status": "a",
       "news": ""
      },
@@ -691,7 +691,7 @@
       "own_elite": 0.17,
       "own_overall": 0.324,
       "price_direction": "rise",
-      "net_transfers": 393461,
+      "net_transfers": 394269,
       "status": "a",
       "news": ""
      },
@@ -700,7 +700,7 @@
       "Shoots from better positions \u2014 expected goals per unit of threat 0.0079 vs 0.0065, which means his attempts come from inside the box rather than outside it.",
       "On set pieces, worth about +0.34 points per 90 before anything else happens.",
       "Reduces risk rather than adding leverage \u2014 30% of your pack already own him.",
-      "The incoming player is rising (+393,461 net), so acting now is cheaper than acting later."
+      "The incoming player is rising (+394,269 net), so acting now is cheaper than acting later."
      ]
     }
    ]
@@ -1058,8 +1058,8 @@
    "from": 7,
    "to": 11
   },
-  "solver_total": 356.0,
-  "gap": -5.19
+  "solver_total": 378.3,
+  "gap": -27.49
  },
  "wildcard": null
 }
