@@ -295,3 +295,22 @@ def test_a_requested_gap_reaches_the_backend(monkeypatch):
     assert seen[-1]["gapRel"] == 0
     solver.solve(m, 5)
     assert "gapRel" not in seen[-1]
+
+
+def test_stopping_on_a_zero_gap_is_a_proof_not_a_shortfall():
+    """The judgement the status word cannot carry on its own.
+
+    The same UCL model came back "Optimal" locally and "Gap Limit" on a
+    runner — the same answer, from a CBC build with a different default.
+    "Time Limit" is the one that really means the answer may be poor; that
+    one cost a whole gameweek plan once.
+    """
+    from gaffer import solver
+
+    assert solver.proven("Optimal")
+    assert solver.proven("Optimal", gap=0)
+    assert solver.proven("Gap Limit", gap=0)
+    assert not solver.proven("Gap Limit")          # some other build's default
+    assert not solver.proven("Time Limit", gap=0)
+    assert not solver.proven("Infeasible", gap=0)
+    assert not solver.proven("Not Solved", gap=0)

@@ -205,7 +205,9 @@ def report(out, write=None):
         w(f"  {(f['kickoff'] or '')[:16]}  {f['home']:>22} {f['lh']:.2f}"
           f" - {f['la']:.2f} {f['away']:<22} [{f['source']}]")
 
-    w(f"\nsolver: {p['status']}   spend {p['spend']:.1f} of {p['budget']:.1f}")
+    proof = "proved optimal" if p.get("optimal") else "NOT PROVED OPTIMAL"
+    w(f"\nsolver: {p['status']} ({proof})   "
+      f"spend {p['spend']:.1f} of {p['budget']:.1f}")
     if p.get("draft"):
         w("\nno squad configured — this is a draft of the best fifteen, "
           "not a transfer plan")

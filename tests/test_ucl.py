@@ -175,7 +175,7 @@ def _projected(n=4000):
 def test_a_drafted_squad_obeys_shape_budget_and_the_club_cap():
     rows, _, _ = _projected()
     out = plan.optimise(rows, time_limit=60)
-    assert out["status"] == "Optimal"
+    assert out["optimal"], out["status"]
     assert len(out["squad"]) == 15 and len(out["xi"]) == 11
     shape = {}
     for r in out["squad"]:
@@ -202,7 +202,7 @@ def test_transfers_are_capped_at_the_free_allowance():
     assert len(owned) == 15
     out = plan.optimise(rows, owned_ids=owned, bank=50.0, free_transfers=2,
                         time_limit=60)
-    assert out["status"] == "Optimal"
+    assert out["optimal"], out["status"]
     assert len(out["in"]) == len(out["out"]) <= 2
 
 
@@ -295,7 +295,7 @@ def test_the_engine_produces_a_whole_plan_from_a_snapshot(tmp_path, monkeypatch)
     out = uclmain.run(3, cfg, offline=True, n=3000, time_limit=60)
 
     assert out["source"] == "snapshot"
-    assert out["plan"]["status"] == "Optimal"
+    assert out["plan"]["optimal"], out["plan"]["status"]
     assert len(out["plan"]["xi"]) == 11
     assert len(out["plan"]["squad"]) == 15
     assert out["armband"], "a plan with no armband is not a UCL plan"

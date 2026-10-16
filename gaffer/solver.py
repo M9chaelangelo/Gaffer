@@ -100,3 +100,24 @@ def solve(model, time_limit, gap=None):
     result = model.solve(backend()(msg=0, timeLimit=time_limit, **kw))
     status = getattr(result, "status", result)
     return status_name(status)
+
+
+def proven(status, gap=None):
+    """Did the solver finish, or did it merely stop?
+
+    This is the distinction that matters to a caller, and the status word
+    alone does not carry it. CBC reports "Gap Limit" when the remaining gap
+    meets the tolerance it was given — which, when that tolerance is zero,
+    is a proof of optimality and not a shortfall. Different CBC builds reach
+    that state on different models, so the same solve came back "Optimal"
+    locally and "Gap Limit" on a runner with the same answer.
+
+    "Time Limit" is the one that genuinely means the answer may be poor. It
+    cost this project a whole gameweek plan once: a churn penalty pushed
+    every week onto the limit, scored 6.8 points below the proven plan, and
+    moved the Bench Boost. So the word is kept for the reader and the
+    judgement is made here, once.
+    """
+    if status == "Optimal":
+        return True
+    return gap == 0 and status == "Gap Limit"

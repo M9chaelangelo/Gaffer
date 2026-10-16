@@ -116,7 +116,11 @@ def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
     chosen = [i for i in P if sq[i].value() and sq[i].value() > 0.5]
     start = [i for i in chosen if xi[i].value() and xi[i].value() > 0.5]
     return {
-        "status": status,          # already a word; `solver.solve` names it
+        # The word is for the reader; `optimal` is what code should test.
+        # A build that stops on a zero gap has proved optimality and says
+        # "Gap Limit" doing it.
+        "status": status,
+        "optimal": solver.proven(status, gap=0),
         "squad": [rows[i] for i in chosen],
         "xi": [rows[i] for i in start],
         "bench": [rows[i] for i in chosen if i not in set(start)],
