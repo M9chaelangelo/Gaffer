@@ -1,6 +1,6 @@
 {
  "gw": 7,
- "generated": "2026-10-16T20:32:34.073038+00:00",
+ "generated": "2026-10-16T20:36:43.718448+00:00",
  "weeks": [
   {
    "gw": 7,
@@ -12,7 +12,7 @@
    ],
    "hits": 0,
    "chip": "Bench Boost",
-   "ep": 84.4
+   "ep": 84.5
   },
   {
    "gw": 8,
@@ -67,7 +67,7 @@
    "name": "Semenyo",
    "team": "MCI",
    "price": 8.3,
-   "proj": 6.261,
+   "proj": 6.3,
    "league": 0.023809523809523808,
    "pack": 0.05
   },
@@ -91,7 +91,7 @@
    "name": "Gomez",
    "team": "BHA",
    "price": 5.0,
-   "proj": 5.434,
+   "proj": 5.431,
    "league": 0.09523809523809523,
    "pack": 0.05
   },
@@ -120,20 +120,20 @@
    "pack": 0.05
   },
   {
+   "name": "Enzo",
+   "team": "MCI",
+   "price": 6.9,
+   "proj": 4.768,
+   "league": 0.023809523809523808,
+   "pack": 0.0
+  },
+  {
    "name": "Dewsbury-Hall",
    "team": "EVE",
    "price": 6.6,
    "proj": 4.756,
    "league": 0.023809523809523808,
    "pack": 0.05
-  },
-  {
-   "name": "Enzo",
-   "team": "MCI",
-   "price": 6.9,
-   "proj": 4.735,
-   "league": 0.023809523809523808,
-   "pack": 0.0
   },
   {
    "name": "Ayari",
@@ -176,20 +176,20 @@
    "pack": 0.0
   },
   {
+   "name": "Gabriel",
+   "team": "ARS",
+   "price": 7.9,
+   "proj": 4.494,
+   "league": 0.07142857142857142,
+   "pack": 0.1
+  },
+  {
    "name": "Trafford",
    "team": "LEE",
    "price": 5.0,
    "proj": 4.491,
    "league": 0.0,
    "pack": 0.0
-  },
-  {
-   "name": "Gabriel",
-   "team": "ARS",
-   "price": 7.9,
-   "proj": 4.482,
-   "league": 0.07142857142857142,
-   "pack": 0.1
   },
   {
    "name": "Evanilson",
@@ -231,10 +231,10 @@
    "captain": {
     "name": "Haaland",
     "reasons": [
-     "Highest projection in your eleven at 8.9 points, against IPS(H).",
+     "Highest projection in your eleven at 9.0 points, against IPS(H).",
      "0.82 expected goals per 90 with 25% of his team's attack running through him.",
      "Hauls \u2014 10+ points \u2014 in 8% of weeks like this one.",
-     "B.Fernandes actually has the higher ceiling (69% against 8%) but projects 6.0 to his 8.9 \u2014 worth the armband only if you need variance rather than points."
+     "B.Fernandes actually has the higher ceiling (69% against 8%) but projects 6.0 to his 9.0 \u2014 worth the armband only if you need variance rather than points."
     ]
    },
    "transfers": [
@@ -343,7 +343,7 @@
       "team": "ARS",
       "pos": "MID",
       "price": 9.6,
-      "ep_next": 5.74,
+      "ep_next": 5.75,
       "ep_horizon": 29.3,
       "fixtures": [
        "NFO(A)",
@@ -367,7 +367,7 @@
       "bps90": 25.97,
       "own_league": 0.2857142857142857,
       "own_pack": 0.2,
-      "own_elite": 0.13,
+      "own_elite": 0.12,
       "own_overall": 0.168,
       "price_direction": "hold",
       "net_transfers": -42454,
@@ -379,8 +379,8 @@
       "team": "MCI",
       "pos": "MID",
       "price": 8.3,
-      "ep_next": 6.26,
-      "ep_horizon": 35.0,
+      "ep_next": 6.3,
+      "ep_horizon": 35.1,
       "fixtures": [
        "IPS(H)",
        "AVL(A)",
@@ -411,7 +411,7 @@
       "news": ""
      },
      "reasons": [
-      "Projected +5.7 points across the horizon (35.0 vs 29.3).",
+      "Projected +5.8 points across the horizon (35.1 vs 29.3).",
       "On set pieces, worth about +0.05 points per 90 before anything else happens."
      ]
     }
@@ -566,8 +566,8 @@
       "team": "EVE",
       "pos": "FWD",
       "price": 5.7,
-      "ep_next": 4.24,
-      "ep_horizon": 19.1,
+      "ep_next": 4.26,
+      "ep_horizon": 19.2,
       "fixtures": [
        "CHE(H)",
        "ARS(A)",
@@ -598,7 +598,7 @@
       "news": ""
      },
      "reasons": [
-      "Projected -7.0 points across the horizon (19.1 vs 26.1).",
+      "Projected -6.9 points across the horizon (19.2 vs 26.1).",
       "Projected to lose points. Treat this as a flag that something else in the plan is driving it, not as a recommendation on its own.",
       "33% of his team's expected goal involvement runs through him.",
       "On set pieces, worth about +0.29 points per 90 before anything else happens.",
@@ -664,8 +664,8 @@
       "team": "MCI",
       "pos": "MID",
       "price": 7.9,
-      "ep_next": 5.64,
-      "ep_horizon": 32.2,
+      "ep_next": 5.68,
+      "ep_horizon": 32.3,
       "fixtures": [
        "IPS(H)",
        "AVL(A)",
@@ -696,7 +696,7 @@
       "news": ""
      },
      "reasons": [
-      "Projected +3.7 points across the horizon (32.2 vs 28.5).",
+      "Projected +3.8 points across the horizon (32.3 vs 28.5).",
       "Shoots from better positions \u2014 expected goals per unit of threat 0.0079 vs 0.0065, which means his attempts come from inside the box rather than outside it.",
       "On set pieces, worth about +0.34 points per 90 before anything else happens.",
       "Reduces risk rather than adding leverage \u2014 25% of your pack already own him.",
@@ -709,7 +709,7 @@
  "planner": {
   "plan": {
    "legal": true,
-   "total_ep": 359.0,
+   "total_ep": 359.14,
    "total_hits": 0,
    "weeks": [
     {
@@ -752,7 +752,7 @@
      ],
      "captain": 411,
      "formation": "3-4-3",
-     "ep": 68.42,
+     "ep": 68.55,
      "hit": 0,
      "free_transfers": 1,
      "free_after": 2,
@@ -1094,8 +1094,8 @@
    "from": 7,
    "to": 11
   },
-  "solver_total": 378.2,
-  "gap": -19.2
+  "solver_total": 378.3,
+  "gap": -19.16
  },
  "wildcard": null
 }
