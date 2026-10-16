@@ -1,6 +1,6 @@
 {
  "gw": 7,
- "generated": "2026-10-16T20:10:53.281904+00:00",
+ "generated": "2026-10-16T20:15:13.248727+00:00",
  "weeks": [
   {
    "gw": 7,
@@ -530,7 +530,7 @@
       "team": "CHE",
       "pos": "FWD",
       "price": 7.8,
-      "ep_next": 4.78,
+      "ep_next": 4.79,
       "ep_horizon": 26.1,
       "fixtures": [
        "EVE(A)",
@@ -709,7 +709,7 @@
  "planner": {
   "plan": {
    "legal": true,
-   "total_ep": 358.99,
+   "total_ep": 359.0,
    "total_hits": 0,
    "weeks": [
     {
@@ -752,7 +752,7 @@
      ],
      "captain": 411,
      "formation": "3-4-3",
-     "ep": 68.4,
+     "ep": 68.42,
      "hit": 0,
      "free_transfers": 1,
      "free_after": 2,
@@ -1095,7 +1095,7 @@
    "to": 11
   },
   "solver_total": 378.2,
-  "gap": -19.21
+  "gap": -19.2
  },
  "wildcard": null
 }
