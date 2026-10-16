@@ -34,21 +34,17 @@ the number to maximise when the goal is a league rather than a rank.
 """
 from __future__ import annotations
 
+from . import projview
+
 XI_MIN = {"GKP": 1, "DEF": 3, "MID": 2, "FWD": 1}
 XI_MAX = {"GKP": 1, "DEF": 5, "MID": 5, "FWD": 3}
 
 
-def _ep(p, gw):
-    e = (p or {}).get("ep")
-    if isinstance(e, dict):
-        return float(e.get(gw, 0.0) or 0.0)
-    if isinstance(e, list) and e:
-        return float(e[0] or 0.0)
-    return float(e or 0.0)
+_ep = projview.ep
 
 
 def _ep_sum(p, gws):
-    return sum(_ep(p, g) for g in gws)
+    return projview.horizon(p, gws)
 
 
 def best_xi(ids, proj, gw, key=None):
@@ -143,7 +139,7 @@ def buy_leverage(squad_ids, own, proj, gws, bank=0.0, sell=None, limit=15):
     budget = float(bank) + max((sell.get(i, 0.0) for i in have), default=0.0)
     rows = []
     for i, p in proj.items():
-        if i in have or (p.get("start_prob") or 0) < 0.6:
+        if i in have or projview.start_prob(p, 1.0) < 0.6:
             continue
         o = own.get(i, 0.0)
         ep = _ep_sum(p, gws)

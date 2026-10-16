@@ -18,6 +18,10 @@ chip is being spent or hoarded.
 """
 from __future__ import annotations
 
+from . import projview
+
+_ep_next = projview.ep_next
+
 CHIP_NAMES = {"wildcard": "Wildcard", "3xc": "Triple Captain",
               "bboost": "Bench Boost", "freehit": "Free Hit",
               "manager": "Assistant Manager"}
@@ -81,7 +85,7 @@ def elite_captains(el, proj, limit=10):
         p = proj.get(pid) or {}
         rows.append({"id": pid, "name": p.get("name", f"#{pid}"),
                      "team": p.get("team"), "share": round(share, 4),
-                     "ep_next": p.get("ep_next")})
+                     "ep_next": projview.ep_next(p)})
     return rows
 
 
@@ -103,15 +107,15 @@ def versus_elite(squad_ids, el, proj, boot=None, limit=12, min_gap=0.15):
         missing.append({"id": pid, "name": p.get("name", f"#{pid}"),
                         "team": p.get("team"), "pos": p.get("pos"),
                         "price": p.get("price"), "elite": round(share, 4),
-                        "ep_next": p.get("ep_next"),
-                        "ep_horizon": p.get("ep_horizon")})
+                        "ep_next": projview.ep_next(p),
+                        "ep_horizon": projview.horizon(p, [None])})
     for pid in squad:
         p = proj.get(pid) or {}
         share = own.get(pid, 0.0)
         holding.append({"id": pid, "name": p.get("name", f"#{pid}"),
                         "team": p.get("team"), "pos": p.get("pos"),
                         "price": p.get("price"), "elite": round(share, 4),
-                        "ep_next": p.get("ep_next")})
+                        "ep_next": projview.ep_next(p)})
     missing.sort(key=lambda r: -r["elite"])
     holding.sort(key=lambda r: r["elite"])
     return {"n": (el or {}).get("n", 0),
