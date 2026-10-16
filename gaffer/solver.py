@@ -82,14 +82,21 @@ def status_name(status):
     return STATUS.get(status, str(status))
 
 
-def solve(model, time_limit):
+def solve(model, time_limit, gap=None):
     """Solve `model` quietly under a time limit; return the status name.
 
     The verdict comes off the return value, not off the model. PuLP 3 returns
     the status integer and also leaves it on `model.status`; PuLP 4 returns a
     stats object and removed the attribute. The return value is the one thing
     both versions give you.
+
+    `gap` is CBC's relative MIP gap. Pass 0 to make it prove optimality.
+    Different CBC builds carry different default gaps, so a model that
+    returns "Optimal" on one machine returns "Gap Limit" on another with the
+    same answer — which is indistinguishable, to a caller comparing the word,
+    from a solve that failed. Small models should simply ask for the proof.
     """
-    result = model.solve(backend()(msg=0, timeLimit=time_limit))
+    kw = {} if gap is None else {"gapRel": gap}
+    result = model.solve(backend()(msg=0, timeLimit=time_limit, **kw))
     status = getattr(result, "status", result)
     return status_name(status)

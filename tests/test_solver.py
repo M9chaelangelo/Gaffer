@@ -265,3 +265,33 @@ def test_the_solver_is_penalised_for_owning_a_player_for_one_week():
     assert 'pulp.lpSum(tin[(i, g)] for g in gws)\n                          + pulp.lpSum(tout[(i, g)] for g in gws) - 1' in src \
         or ("tin" in src and "tout" in src and "churn[i] >=" in src)
     assert 'cfg.get("churn_cost"' in src, "churn_cost must be configurable"
+
+
+def test_a_requested_gap_reaches_the_backend(monkeypatch):
+    """A small model should be able to ask CBC to prove optimality.
+
+    Different CBC builds carry different default gaps, so the same model
+    came back "Optimal" locally and "Gap Limit" on a runner — the same
+    answer, and indistinguishable to a caller comparing the word from a
+    solve that failed.
+    """
+    import pulp
+
+    from gaffer import solver
+
+    seen = []
+
+    class Fake:
+        def __init__(self, **kw):
+            seen.append(kw)
+
+    monkeypatch.setattr(solver, "backend", lambda: Fake)
+    monkeypatch.setattr(pulp.LpProblem, "solve", lambda self, s: 1)
+
+    m = pulp.LpProblem("t", pulp.LpMaximize)
+    m += m.add_variable("x", lowBound=0, upBound=1, cat="Binary")
+
+    assert solver.solve(m, 5, gap=0) == "Optimal"
+    assert seen[-1]["gapRel"] == 0
+    solver.solve(m, 5)
+    assert "gapRel" not in seen[-1]

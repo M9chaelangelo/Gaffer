@@ -109,11 +109,14 @@ def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
           + pulp.lpSum(ep[i] * (g.captain_multiplier - 1) * cap[i] for i in P)
           - g.extra_transfer_cost * extra)
 
-    status = solver.solve(m, time_limit)
+    # Ask CBC to prove optimality rather than stop at its build's default
+    # gap: fifteen from a thousand is a small model, and "Gap Limit" reads to
+    # a caller comparing the word exactly like a solve that failed.
+    status = solver.solve(m, time_limit, gap=0)
     chosen = [i for i in P if sq[i].value() and sq[i].value() > 0.5]
     start = [i for i in chosen if xi[i].value() and xi[i].value() > 0.5]
     return {
-        "status": solver.status_name(status),
+        "status": status,          # already a word; `solver.solve` names it
         "squad": [rows[i] for i in chosen],
         "xi": [rows[i] for i in start],
         "bench": [rows[i] for i in chosen if i not in set(start)],
