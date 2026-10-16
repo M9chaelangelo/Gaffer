@@ -92,3 +92,21 @@ def test_ep_next_is_read_off_the_gameweek_keyed_projection():
 
     out = crowd.versus_elite([], {"n": 1, "own": {11: 0.99}}, proj)
     assert out["they_own_you_do_not"][0]["ep_next"] == 8.95
+
+
+def test_assistant_manager_is_not_a_chip_this_season():
+    """It existed in 2024/25 only. Nothing may plan or recommend it."""
+    assert "manager" not in crowd.CHIP_NAMES
+    assert set(crowd.CHIP_NAMES) == {"wildcard", "3xc", "bboost", "freehit"}
+
+
+def test_an_older_gameweek_naming_it_is_still_readable():
+    """chip_history reads finished gameweeks, which may predate the change,
+    and a bare 'manager' in the output would read as a live chip."""
+    b = boot()
+    b["events"][0]["chip_plays"].append({"chip_name": "manager",
+                                         "num_played": 1_000})
+    h = crowd.chip_history(b)
+    labels = h["weeks"][0]["chips"]
+    assert "Assistant Manager (2024/25)" in labels
+    assert "Assistant Manager" not in labels

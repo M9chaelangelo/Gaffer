@@ -22,9 +22,14 @@ from . import projview
 
 _ep_next = projview.ep_next
 
+# The four chips in play this season, by the key FPL's own feed uses.
+# `manager` (Assistant Manager) existed in 2024/25 and does NOT exist this
+# season. It stays in the historical map below only so that chip_history can
+# still read an older gameweek without reporting a bare "manager"; nothing
+# may plan or recommend it.
 CHIP_NAMES = {"wildcard": "Wildcard", "3xc": "Triple Captain",
-              "bboost": "Bench Boost", "freehit": "Free Hit",
-              "manager": "Assistant Manager"}
+              "bboost": "Bench Boost", "freehit": "Free Hit"}
+HISTORICAL_CHIP_NAMES = {**CHIP_NAMES, "manager": "Assistant Manager (2024/25)"}
 
 
 def chip_history(boot):
@@ -41,7 +46,8 @@ def chip_history(boot):
             continue
         row = {"gw": ev["id"], "finished": bool(ev.get("finished")), "chips": {}}
         for p in plays:
-            name = CHIP_NAMES.get(p.get("chip_name"), p.get("chip_name"))
+            name = HISTORICAL_CHIP_NAMES.get(p.get("chip_name"),
+                                             p.get("chip_name"))
             n = int(p.get("num_played") or 0)
             row["chips"][name] = {"played": n, "share": round(n / total, 5)}
         out.append(row)
