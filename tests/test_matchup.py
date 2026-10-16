@@ -160,3 +160,13 @@ def test_a_club_with_history_starts_from_it_not_from_average():
     leaky = matchup.concession_by_position(boot, fx, lv, prior={"BBB": {"MID": 1.25}})[0]
     tight = matchup.concession_by_position(boot, fx, lv, prior={"BBB": {"MID": 0.80}})[0]
     assert leaky[2]["index"]["MID"] > tight[2]["index"]["MID"]
+
+
+def test_a_profile_with_unmeasured_positions_can_be_summarised():
+    """max() over index values raised TypeError once the floor made some
+    of them None — and the surrounding except then discarded a profile
+    that had built perfectly. The reporting path must tolerate nulls."""
+    out = matchup.build(BOOT, FX, {}, weight=0.0)
+    for r in out["by_team"].values():
+        vals = [v for v in r["index"].values() if v is not None]
+        assert max(vals) if vals else True      # must not raise

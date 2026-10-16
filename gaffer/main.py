@@ -407,14 +407,32 @@ def main():
                            weight=cfg.get("matchup_weight", 0.0))
         if hist:
             print(f"  matchup prior: {len(hist)} clubs from previous seasons")
-        worst = sorted(mu["by_team"].items(),
-                       key=lambda kv: -max(kv[1]["index"].values()))[:3]
-        print(f"  matchup (weight {mu['weight']:.2f}): most exposed — " + ", ".join(
-            f"{t} to {max(r['index'], key=r['index'].get)} "
-            f"{max(r['index'].values()):.2f}" for t, r in worst))
     except Exception as ex:                                 # noqa: BLE001
         print(f"  (matchup unavailable: {ex})")
         mu = None
+
+    # Reporting is a separate try. A formatting slip here used to be caught
+    # by the block above, which then set `mu = None` and threw away a
+    # profile that had built perfectly — the output looked like the feature
+    # had failed when only the summary line had.
+    try:
+        if mu:
+            def _peak(r):
+                vals = [v for v in r["index"].values() if v is not None]
+                return max(vals) if vals else None
+            ranked = [(t, r, _peak(r)) for t, r in mu["by_team"].items()]
+            ranked = sorted([x for x in ranked if x[2] is not None],
+                            key=lambda x: -x[2])[:3]
+            if ranked:
+                print(f"  matchup (weight {mu['weight']:.2f}): most exposed — "
+                      + ", ".join(
+                          f"{t} to "
+                          f"{max((k for k, v in r['index'].items() if v is not None), key=lambda k: r['index'][k])}"
+                          f" {peak:.2f}" for t, r, peak in ranked))
+            else:
+                print("  matchup: no position has enough baseline to measure yet")
+    except Exception as ex:                                 # noqa: BLE001
+        print(f"  (matchup summary line failed, profile kept: {ex})")
 
     # --- the template, the ceiling, and the edge --------------------------
     # Winning a mini-league is a different problem from scoring points: what
