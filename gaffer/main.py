@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 
 import yaml
 
-from . import (crowd, fetch, games, guards, imminent, league, projections, prices,
+from . import (crowd, cups, fetch, games, guards, imminent, league, projections,
+               prices,
                template,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
@@ -362,6 +363,23 @@ def main():
     # repo; it reads data.json. The server-rendered page is still written, as
     # report.html — it needs no JavaScript and is the thing that still works if
     # the app breaks or the browser is ancient.
+    # --- blanks and doubles, simulated ------------------------------------
+    # The cup calendar is published; who survives to each round is a bracket,
+    # so it is simulated rather than declared. See gaffer/cups.py.
+    try:
+        cup = cups.build(cfg, strengths, [t["short_name"] for t in boot["teams"]])
+        for g, b in sorted(cup["blanks"].items()):
+            if b.get("known"):
+                top = ", ".join(f"{r['team']} {r['p_blank']:.0%}"
+                                for r in b["clubs"][:4])
+                print(f"  GW{g} blank ({b['cup']} {b['round']}): "
+                      f"~{b['expected_blanking']} clubs — {top}")
+            else:
+                print(f"  GW{g} blank ({b['cup']}): not known — {b['note']}")
+    except Exception as ex:                                 # noqa: BLE001
+        print(f"  (cup simulation unavailable: {ex})")
+        cup = None
+
     # --- the template, the ceiling, and the edge --------------------------
     # Winning a mini-league is a different problem from scoring points: what
     # moves you up is your score minus the scores around you. See template.py.
@@ -468,7 +486,7 @@ def main():
                          team_form=form_table, strengths=strengths,
                          ticker=ticker, imminent=due,
                          guards=bad, ledger=sc, crowd=pack,
-                         template=tmpl)
+                         template=tmpl, cups=cup)
     webdata.write(data, cfg["out_dir"])
 
     out = os.path.join(cfg["out_dir"], "report.html")

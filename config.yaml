@@ -260,6 +260,30 @@ european_weeks: [7, 8, 10, 12, 15, 16, 22, 23]
 # was off a phone screenshot and put GW35 and GW36 in the wrong bucket:
 # bright yellow is "Likely DGW" and tan is "Possible DGW", and at phone size
 # they are nearly the same colour. Only GW32 is called likely.
+# --- cup collisions, simulated -----------------------------------------------
+# Which league gameweek each cup round displaces, and which round it is. The
+# dates are published; who survives to that round is simulated from a random
+# draw and team strength, so the output is a probability per club rather
+# than a point call. See gaffer/cups.py and docs/CALENDAR.md.
+cup_blanks:
+  33: {cup: fa,  round: semi_final}    # Apr 24 — FA Cup semi-finals
+  37: {cup: fa,  round: final}         # May 22 — FA Cup final
+  30: {cup: efl, round: final}         # Mar 20 — EFL Cup final, see below
+
+# A postponed league match returns in a free midweek. Which one is a
+# scheduling decision rather than a model output, so the candidate weeks are
+# declared and `share` is the chance the replay lands in this one.
+cup_doubles:
+  32: {from_blank_gw: 30, share: 0.7}
+  35: {from_blank_gw: 33, share: 0.5}
+  36: {from_blank_gw: 33, share: 0.5}
+
+# The EFL Cup began before this engine did and its draw is in no feed here,
+# so GW30 reports "not known" rather than two invented finalists. Fill this
+# in from a published bracket to switch it on.
+# cup_entrants:
+#   efl: [MCI, ARS, ...]
+
 blank_gws: [30, 33]              # red:    Mar 20, Apr 24
 possible_blank_gws: [37]         # salmon: May 22
 double_gws: [32]                 # yellow, "Likely DGW":   Apr 17

@@ -62,7 +62,7 @@ def build(proj, prof, lg, elite_own, price_fc, gws, squad_ids, weeks,
           deadline, gw, planner=None, hit_verdict=None, clean_sheets=None,
           wildcard=None, team_form=None, strengths=None, ticker=None,
           imminent=None, guards=None, ledger=None, crowd=None,
-          template=None):
+          template=None, cups=None):
     """Assemble the page's dataset."""
     cards = {}
     for pid in proj:
@@ -161,6 +161,7 @@ def build(proj, prof, lg, elite_own, price_fc, gws, squad_ids, weeks,
         "imminent": imminent,
         "crowd": crowd,
         "template": template,
+        "cups": cups,
         "guards": guards,
         "ledger": ledger,
         "diagnosis": (analysis.build(
