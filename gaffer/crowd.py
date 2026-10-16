@@ -18,20 +18,9 @@ chip is being spent or hoarded.
 """
 from __future__ import annotations
 
-def _ep_next(p, gws=None):
-    """Next gameweek's projection off a raw projections row.
+from . import projview
 
-    `proj` carries `ep` as a dict keyed by gameweek; `ep_next` is built later
-    in explain.player_card. Reading `ep_next` here returned None on every row
-    and printed an elite captains table with no numbers in it.
-    """
-    ep = (p or {}).get("ep")
-    if isinstance(ep, dict) and ep:
-        return round(ep[min(ep)] if gws is None else ep.get(gws[0], ep[min(ep)]), 2)
-    if isinstance(ep, (int, float)):
-        return round(ep, 2)
-    return (p or {}).get("ep_next")
-
+_ep_next = projview.ep_next
 
 CHIP_NAMES = {"wildcard": "Wildcard", "3xc": "Triple Captain",
               "bboost": "Bench Boost", "freehit": "Free Hit",
@@ -96,7 +85,7 @@ def elite_captains(el, proj, limit=10):
         p = proj.get(pid) or {}
         rows.append({"id": pid, "name": p.get("name", f"#{pid}"),
                      "team": p.get("team"), "share": round(share, 4),
-                     "ep_next": _ep_next(p)})
+                     "ep_next": projview.ep_next(p)})
     return rows
 
 
@@ -118,15 +107,15 @@ def versus_elite(squad_ids, el, proj, boot=None, limit=12, min_gap=0.15):
         missing.append({"id": pid, "name": p.get("name", f"#{pid}"),
                         "team": p.get("team"), "pos": p.get("pos"),
                         "price": p.get("price"), "elite": round(share, 4),
-                        "ep_next": _ep_next(p),
-                        "ep_horizon": p.get("ep_horizon")})
+                        "ep_next": projview.ep_next(p),
+                        "ep_horizon": projview.horizon(p)})
     for pid in squad:
         p = proj.get(pid) or {}
         share = own.get(pid, 0.0)
         holding.append({"id": pid, "name": p.get("name", f"#{pid}"),
                         "team": p.get("team"), "pos": p.get("pos"),
                         "price": p.get("price"), "elite": round(share, 4),
-                        "ep_next": _ep_next(p)})
+                        "ep_next": projview.ep_next(p)})
     missing.sort(key=lambda r: -r["elite"])
     holding.sort(key=lambda r: r["elite"])
     return {"n": (el or {}).get("n", 0),

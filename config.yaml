@@ -31,8 +31,18 @@ bench_weights: [0.16, 0.11, 0.06, 0.02]
 
 # --- mini-league strategy ----------------------------------------------------
 # 0.0 = pure expected points. 1.0 = pure differential-chasing.
-# Raise it when you are behind and need variance; lower it when you are ahead.
-rivalry: 0.35
+#
+# Raised 0.35 -> 0.60 on 16 Oct 2026. The manager's stated goal is the
+# mini-league, not overall rank, and he is LAST of 42 with the leader 132
+# points clear. Playing the field's own template from behind cannot close a
+# gap that size: matching everyone's score keeps the gap exactly where it is.
+# Closing it needs players the teams above him do not own, which is what
+# this dial buys — at the cost of a wider spread in both directions, which
+# is the correct trade when the downside is finishing last either way.
+#
+# Lower it back toward 0.35 once the gap is inside roughly 40 points, and to
+# 0.2 if he leads. See template.py for the arithmetic this feeds.
+rivalry: 0.60
 
 # --- value of waiting --------------------------------------------------------
 # What perfect information is worth on a 15-player rebuild, in points.
@@ -40,7 +50,12 @@ rivalry: 0.35
 # is mostly noise; lower it if you trust two gameweeks of data.
 info_value: 22.0
 break_bonus: 4.0          # extra credit for a gameweek right after an international break
-rival_depth: 10             # how many teams above you count as "the pack"
+# How many teams above you count as "the pack" whose ownership you are
+# measured against. Raised 10 -> 20 with rivalry: from last place in a
+# 42-team league the ten immediately above are not the teams that decide the
+# season, and a pack that narrow makes almost everyone's picks look like a
+# differential.
+rival_depth: 20
 
 # --- projections -------------------------------------------------------------
 solio_url: https://fpl.solioanalytics.com/api/data/latest.json
@@ -146,7 +161,17 @@ free_transfers: 1
 # is declared here for the same reason free_transfers is. Get it wrong and the
 # report recommends a chip you do not have — which is how a GW8 Triple Captain
 # worth 9.3 points got suggested for a chip that was already spent.
-chips_used: [tc, wc]
+# Chips already played, BY HALF. FPL issues two full sets: the first expires
+# at the GW19 deadline and a fresh Wildcard, Triple Captain, Bench Boost and
+# Free Hit arrive for GW20. Spending one in the first half says nothing about
+# the second, and the engine used to assume otherwise — from GW20 on, no chip
+# had any window at all, so it would have quietly stopped planning chips for
+# the rest of the season.
+#
+# A plain list still works and means the first half.
+chips_used:
+  first: [tc, wc]     # Triple Captain GW3, Wildcard GW6
+  second: []          # untouched — a whole new set from GW20
 
 chip_plan:
   # Empty on purpose. Triple Captain went in GW3 and the Wildcard in GW6, so
@@ -199,7 +224,46 @@ wildcard_time_limit: 180   # seconds
 # declared here. Check the UEFA calendar and update; a wrong list is worse than
 # an empty one.
 european_teams: [MCI, ARS, LIV, CHE, NEW, TOT, AVL, NFO]
-european_weeks: [7, 8, 10, 13, 16, 18]
+# Gameweeks that FOLLOW a European midweek, so the haircut lands on the
+# league game the rotation actually shows up in.
+#
+# Corrected 16 Oct 2026 against Ben Crellin's season calendar. The old list
+# [7, 8, 10, 13, 16, 18] had GW13 and GW18 as European weeks when neither
+# is, and missed GW12, GW15, GW22 and GW23 — so eight clubs' minutes were
+# being discounted in the wrong weeks. GW7, GW8 and GW10 were right, which
+# is why nothing in the current horizon moves.
+#
+#   MD2  Oct 13 -> GW7      MD6  Dec  8 -> GW15
+#   MD3  Oct 20 -> GW8      MD6* Dec 15 -> GW16
+#   MD4  Nov  3 -> GW10     MD7  Jan 19 -> GW22
+#   MD5  Nov 24 -> GW12     MD8  Jan 26 -> GW23
+#
+# Knockouts from February are in `blank_gws`/`double_gws` territory and are
+# listed there rather than here.
+european_weeks: [7, 8, 10, 12, 15, 16, 22, 23]
+
+# --- blanks and doubles ------------------------------------------------------
+# Source: Ben Crellin's season calendar, read from a screenshot on 16 Oct
+# 2026. This is a FORECAST from cup progression, not a fixture list: the FPL
+# API will not show a rescheduled match until it is actually rescheduled, so
+# these are months ahead of anything the engine can derive. That is exactly
+# why they are declared by hand — it is the one input the model cannot
+# produce for itself.
+#
+# Nothing here falls before GW19, which independently confirms the engine's
+# own finding that the first-half Free Hit has no natural home: there is no
+# blank to use it on before it expires.
+#
+# Confidence is the calendar's own, not mine. Re-read it as cups resolve;
+# a semi-final result moves these.
+# Corrected against a full-resolution copy of the calendar. The first read
+# was off a phone screenshot and put GW35 and GW36 in the wrong bucket:
+# bright yellow is "Likely DGW" and tan is "Possible DGW", and at phone size
+# they are nearly the same colour. Only GW32 is called likely.
+blank_gws: [30, 33]              # red:    Mar 20, Apr 24
+possible_blank_gws: [37]         # salmon: May 22
+double_gws: [32]                 # yellow, "Likely DGW":   Apr 17
+possible_double_gws: [35, 36]    # tan,    "Possible DGW": May 8, May 15
 european_haircut: 0.12    # minutes lost in a European week
 midweek_haircut: 0.06     # minutes lost in a domestic midweek round
 

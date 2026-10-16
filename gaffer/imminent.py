@@ -28,6 +28,8 @@ its own weight.
 """
 from __future__ import annotations
 
+from . import projview
+
 POS = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 WINDOW = 4            # gameweeks of "recent"; roughly a month of football
 MIN_MINUTES = 270     # three full games, below which a per-90 is not a rate
@@ -99,11 +101,7 @@ def build(boot, live_by_gw, proj=None, window=WINDOW, top=20):
             "news": e.get("news") or "",
         }
         if proj and e["id"] in proj:
-            # Same trap as crowd.py: proj rows key `ep` by gameweek and have
-            # no `ep_next`, so this column printed 0.00 for every player.
-            ep = (proj[e["id"]] or {}).get("ep")
-            row["ep_next"] = (round(ep[min(ep)], 2) if isinstance(ep, dict) and ep
-                              else proj[e["id"]].get("ep_next"))
+            row["ep_next"] = round(projview.ep_next(proj[e["id"]]), 2)
         rows.append(row)
 
     def rank(kind):

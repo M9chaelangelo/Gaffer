@@ -205,7 +205,10 @@ def test_solver_never_plans_a_chip_already_played():
     )
 
     src = inspect.getsource(optimise.plan)
-    assert 'cfg.get("chips_used"' in src, "plan() must read chips_used from config"
+    assert "planner.chips_used(cfg)" in src, \
+        "plan() must read the spent chips from config"
+    assert "planner.chips_used_second(cfg)" in src, \
+        "and must read the second-half set separately — they are two sets"
 
 
 def test_bench_boost_week_reports_all_fifteen_and_a_real_eleven():
@@ -227,3 +230,19 @@ def test_bench_boost_week_reports_all_fifteen_and_a_real_eleven():
         "a Bench Boost week must score the bench too"
     assert "planner.best_xi(squad_g" in src, \
         "a Bench Boost week must still report a real eleven"
+
+
+def test_the_solver_may_plan_a_second_half_chip_after_spending_the_first():
+    """Two sets of chips, one per half — the solver constrained one per horizon.
+
+    With a horizon straddling GW19 and the Wildcard spent in the first half,
+    the old constraint `sum(wc) <= 0` forbade the second-half Wildcard the
+    manager actually holds.
+    """
+    import inspect
+    from gaffer import optimise
+
+    src = inspect.getsource(optimise.plan)
+    assert "planner.half_of(g)" in src, \
+        "chip limits must be applied per half, not across the horizon"
+    assert "spent_second" in src

@@ -38,9 +38,14 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
     # GW6 — which quietly costs you every week the solver reserves for it.
     # Defaults to what config says is left rather than to all four.
     if chips_available is None:
-        spent = {str(x).strip().lower() for x in (cfg.get("chips_used") or ())}
-        chips_available = tuple(c for c in ("wc", "tc", "bb", "fh")
-                                if c not in spent)
+        chips_available = tuple(
+            c for c in ("wc", "tc", "bb", "fh")
+            if c not in planner.chips_used(cfg)[0])
+    # Chips come in two sets: the first expires at the GW19 deadline, the
+    # second arrives for GW20. Constraining `sum(wc) <= 1` across the whole
+    # horizon is right only while the horizon sits inside one half — once it
+    # straddles GW19 it forbids a second-half chip the manager actually holds.
+    spent_second = set(planner.chips_used_second(cfg))
     pack_own = pack_own or {}
     rivalry = cfg.get("rivalry", 0.0)
     decay = cfg.get("decay", 0.87)
@@ -196,9 +201,16 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
     if force_chip is not None:
         which, when = force_chip
         m += {"wc": wc, "tc": tc, "bb": bb}[which][when] == 1
-    m += pulp.lpSum(wc.values()) <= (1 if "wc" in chips_available else 0)
-    m += pulp.lpSum(tc.values()) <= (1 if "tc" in chips_available else 0)
-    m += pulp.lpSum(bb.values()) <= (1 if "bb" in chips_available else 0)
+    # One of each chip per half, not per horizon.
+    halves = {"first": [g for g in gws if planner.half_of(g) == "first"],
+              "second": [g for g in gws if planner.half_of(g) == "second"]}
+    for key, var in (("wc", wc), ("tc", tc), ("bb", bb)):
+        for half, weeks in halves.items():
+            if not weeks:
+                continue
+            gone = (key not in chips_available) if half == "first" \
+                else (key in spent_second)
+            m += pulp.lpSum(var[g] for g in weeks) <= (0 if gone else 1)
     # One chip inside a five-week window. Stacking three is a modelling artefact,
     # not a plan.
     m += pulp.lpSum(wc.values()) + pulp.lpSum(tc.values()) \
