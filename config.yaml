@@ -309,3 +309,12 @@ matchup_weeks: 8
 # back. Squads and managers turn over, so this is a starting guess, not a
 # verdict — and a promoted club has no history and falls back to the mean.
 matchup_prior_seasons: ["2024-25", "2025-26"]
+
+# What it costs to buy a player and sell him again inside the horizon.
+# A transfer-in and a transfer-out of the same player is two moves spent on
+# however many weeks he was held, and at a five-week horizon that never
+# surfaced. At eight the solver produced two such flips in one line. 3.0 is
+# below a hit (4) and above min_transfer_gain (1.5): enough to stop churn
+# that is barely worth it, not enough to block a genuinely good short hold
+# such as a one-week double gameweek.
+churn_cost: 3.0

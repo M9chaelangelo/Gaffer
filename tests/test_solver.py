@@ -246,3 +246,22 @@ def test_the_solver_may_plan_a_second_half_chip_after_spending_the_first():
     assert "planner.half_of(g)" in src, \
         "chip limits must be applied per half, not across the horizon"
     assert "spent_second" in src
+
+
+def test_the_solver_is_penalised_for_owning_a_player_for_one_week():
+    """At an eight-week horizon the line bought Dewsbury-Hall in GW10 and
+    sold him in GW11, then bought Cherki in GW11 and sold him in GW12 —
+    each move optimal alone, together two transfers spent for one week of
+    ownership each. A transfer's gain was priced and its holding period
+    was not.
+    """
+    import inspect
+
+    from gaffer import optimise
+
+    src = inspect.getsource(optimise.plan)
+    assert "churn" in src, "no churn penalty in the solver"
+    # bought AND sold inside the horizon is what must be caught
+    assert 'pulp.lpSum(tin[(i, g)] for g in gws)\n                          + pulp.lpSum(tout[(i, g)] for g in gws) - 1' in src \
+        or ("tin" in src and "tout" in src and "churn[i] >=" in src)
+    assert 'cfg.get("churn_cost"' in src, "churn_cost must be configurable"
