@@ -51,6 +51,18 @@ CHIP_NAMES = {
 
 # The first set of chips dies at the GW19 deadline and cannot be carried over.
 FIRST_HALF_LAST_GW = 19
+SECOND_HALF_FIRST_GW = 20
+
+
+def half_of(gw):
+    """Which chip half a gameweek belongs to.
+
+    FPL issues two full sets of chips. The first expires at the GW19
+    deadline; a fresh Wildcard, Triple Captain, Bench Boost and Free Hit
+    arrive for GW20 onward. Spending one in the first half says nothing
+    about whether you hold it in the second.
+    """
+    return "first" if int(gw) <= FIRST_HALF_LAST_GW else "second"
 
 
 @dataclass
@@ -335,6 +347,8 @@ def chips_used(cfg):
     not, so a typo is reported instead of silently meaning "nothing is spent".
     """
     raw = (cfg or {}).get("chips_used") or ()
+    if isinstance(raw, dict):          # {first: [...], second: [...]}
+        raw = list(raw.get("first") or ())
     if isinstance(raw, str):
         raw = [raw]
     spent, unknown = [], []
@@ -377,18 +391,28 @@ def reconcile_chips(declared, played):
     return tuple(sorted(played - declared)), tuple(sorted(declared - played))
 
 
-def chip_windows(gws, spent=()):
+def chip_windows(gws, spent=(), spent_second=()):
     """Which gameweeks each chip may legally be played in.
 
-    The first set of chips expires at the GW19 deadline, so a plan that saves
-    Bench Boost for GW21 while still holding a first-half chip is not late —
-    it is impossible. A chip already spent has no window at all.
+    Two sets, not one. The first expires at the GW19 deadline — so saving a
+    first-half Bench Boost for GW21 is not late, it is impossible — and a
+    fresh set arrives for GW20. A chip spent in the first half is gone from
+    the first half only; it says nothing about the second.
+
+    This used to window every chip to `g <= 19` regardless, which meant that
+    from GW20 on no chip had any window at all and the engine would quietly
+    stop planning chips for the rest of the season.
     """
-    return {
-        chip: [g for g in gws if g <= FIRST_HALF_LAST_GW]
-        for chip in CHIP_NAMES
-        if chip not in spent
-    }
+    first = {str(c).strip().lower() for c in (spent or ())}
+    second = {str(c).strip().lower() for c in (spent_second or ())}
+    out = {}
+    for chip in CHIP_NAMES:
+        weeks = [g for g in gws
+                 if (half_of(g) == "first" and chip not in first)
+                 or (half_of(g) == "second" and chip not in second)]
+        if weeks:
+            out[chip] = weeks
+    return out
 
 
 def sweep_chip(chip, plan_steps, proj, squad_ids, bank, first_ft, gws, sell=None):
@@ -561,3 +585,17 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
         "gap": (None if solver_total is None
                 else round(result.total_ep - solver_total, 2)),
     }
+
+
+def chips_used_second(cfg):
+    """Chips spent in the SECOND half, which is a separate set from the first.
+
+    Accepts `chips_used: {first: [...], second: [...]}`. A plain list means
+    the first half, because that is what every config said before the second
+    set existed in this model.
+    """
+    raw = (cfg or {}).get("chips_used")
+    if isinstance(raw, dict):
+        vals = raw.get("second") or ()
+        return tuple(dict.fromkeys(str(x).strip().lower() for x in vals))
+    return ()

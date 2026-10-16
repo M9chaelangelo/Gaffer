@@ -161,7 +161,17 @@ free_transfers: 1
 # is declared here for the same reason free_transfers is. Get it wrong and the
 # report recommends a chip you do not have — which is how a GW8 Triple Captain
 # worth 9.3 points got suggested for a chip that was already spent.
-chips_used: [tc, wc]
+# Chips already played, BY HALF. FPL issues two full sets: the first expires
+# at the GW19 deadline and a fresh Wildcard, Triple Captain, Bench Boost and
+# Free Hit arrive for GW20. Spending one in the first half says nothing about
+# the second, and the engine used to assume otherwise — from GW20 on, no chip
+# had any window at all, so it would have quietly stopped planning chips for
+# the rest of the season.
+#
+# A plain list still works and means the first half.
+chips_used:
+  first: [tc, wc]     # Triple Captain GW3, Wildcard GW6
+  second: []          # untouched — a whole new set from GW20
 
 chip_plan:
   # Empty on purpose. Triple Captain went in GW3 and the Wildcard in GW6, so
@@ -246,10 +256,14 @@ european_weeks: [7, 8, 10, 12, 15, 16, 22, 23]
 #
 # Confidence is the calendar's own, not mine. Re-read it as cups resolve;
 # a semi-final result moves these.
-blank_gws: [30, 33]              # red on the calendar: Mar 20, Apr 24
-possible_blank_gws: [37]         # May 22
-double_gws: [32, 35, 36]         # yellow, "Likely DGW": Apr 17, May 8, May 15
-possible_double_gws: []          # none read with confidence from the screenshot
+# Corrected against a full-resolution copy of the calendar. The first read
+# was off a phone screenshot and put GW35 and GW36 in the wrong bucket:
+# bright yellow is "Likely DGW" and tan is "Possible DGW", and at phone size
+# they are nearly the same colour. Only GW32 is called likely.
+blank_gws: [30, 33]              # red:    Mar 20, Apr 24
+possible_blank_gws: [37]         # salmon: May 22
+double_gws: [32]                 # yellow, "Likely DGW":   Apr 17
+possible_double_gws: [35, 36]    # tan,    "Possible DGW": May 8, May 15
 european_haircut: 0.12    # minutes lost in a European week
 midweek_haircut: 0.06     # minutes lost in a domestic midweek round
 

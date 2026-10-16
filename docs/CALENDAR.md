@@ -19,11 +19,17 @@ a date and a source.
 | Gameweek | Date | Call | Confidence |
 |---|---|---|---|
 | **GW30** | 20 Mar | **Blank** | calendar marks it red |
-| **GW32** | 17 Apr | **Double** | "Likely DGW" |
-| **GW33** | 24 Apr | **Blank** | red |
-| **GW35** | 8 May | **Double** | "Likely DGW" |
-| **GW36** | 15 May | **Double** | "Likely DGW" |
-| GW37 | 22 May | Possible blank | — |
+| **GW32** | 17 Apr | **Double** | "Likely DGW" (yellow) |
+| **GW33** | 24 Apr | **Blank** | BGW (red) |
+| GW35 | 8 May | Possible double | "Possible DGW" (tan) |
+| GW36 | 15 May | Possible double | "Possible DGW" (tan) |
+| GW37 | 22 May | Possible blank | (salmon) |
+
+Corrected 16 Oct against a full-resolution copy. The first read was off a
+phone screenshot and promoted GW35 and GW36 from *possible* to *likely*:
+the calendar's yellow and tan are nearly indistinguishable at phone size.
+Only **GW32** is called likely. That matters for the second-half Bench
+Boost, which should go to GW32 unless 35 or 36 firms up.
 
 **Nothing falls before GW19.** That independently confirms what the chip
 sweep already said: the first-half Free Hit has no natural home, because
@@ -41,10 +47,14 @@ set can, and this is where they belong:
   its name: field eleven players who actually have a fixture, then revert.
   GW33 also collides with the FA Cup semi-finals, which usually makes it the
   emptier of the two.
-- **Bench Boost → GW35 or GW36.** Fifteen players with two fixtures each is
-  the chip's maximum. Prefer whichever has more of the squad doubling.
-- **Triple Captain → GW32.** The earliest likely double, and the one with
-  the least risk of a late reschedule unwinding it.
+- **Bench Boost → GW32**, the only *likely* double. GW35 and GW36 are only
+  *possible*, and a Bench Boost spent on a double that never materialises is
+  the worst outcome available. Revisit if either firms up — both are later,
+  so waiting costs nothing but information.
+- **Triple Captain → GW32 as well**, which collides with Bench Boost. One of
+  them moves: take Triple Captain in GW32 if a premium doubles, Bench Boost
+  if the squad doubles broadly. The chip sweep prices this once the fixtures
+  are real.
 - **Wildcard → GW29 or GW31**, to build a squad loaded on the clubs that
   double in 32/35/36 before the chips are played.
 
