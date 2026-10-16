@@ -282,3 +282,6 @@ calibrate_to_solio: true  # scale local projections to match Solio where they ov
 # it up only once the ledger shows it helps — the mistake the `ceiling` model
 # made was being consumed before anyone checked it.
 matchup_weight: 0.0
+
+# How many finished gameweeks the opponent-matchup profile looks back over.
+matchup_weeks: 8

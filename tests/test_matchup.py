@@ -76,3 +76,14 @@ def test_build_reports_by_team_name_and_states_its_own_weight():
     assert out["weight"] == 0.0
     assert "AAA" in out["by_team"] and "BBB" in out["by_team"]
     assert out["by_team"]["BBB"]["venue"] is not None
+
+
+def test_an_empty_live_window_still_returns_a_neutral_profile():
+    """The first wiring borrowed the ledger's payloads, which are only
+    fetched for gameweeks it has not already settled — so from the second
+    run on there was no data and the whole block vanished. Whatever the
+    cause, no data must mean a neutral index, not a missing section."""
+    out = matchup.build(BOOT, FX, {}, weight=0.0)
+    assert out["by_team"], "a profile is still produced"
+    for row in out["by_team"].values():
+        assert all(v == 1.0 for v in row["index"].values())

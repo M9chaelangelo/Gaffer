@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import yaml
 
-from . import (crowd, fetch, games, guards, imminent, league, matchup,
+from . import (cache, crowd, fetch, games, guards, imminent, league, matchup,
                projections, prices, template,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
@@ -380,7 +380,20 @@ def main():
     # --- how the two sides match up --------------------------------------
     # Reuses the live payloads the ledger already pulled: no extra calls.
     try:
-        mu = matchup.build(boot, fx, live_by_gw,
+        # Fetch the recent gameweeks' live payloads directly rather than
+        # borrowing the ledger's. Two reasons it cannot piggyback: the ledger
+        # block runs later in the file, and it only fetches gameweeks it has
+        # not already settled — so on the second run onward it fetches nothing
+        # and the matchup would quietly have no data at all.
+        window = [g for g in range(max(1, gw - cfg.get("matchup_weeks", 8)), gw)]
+        live_recent = {}
+        for g in window:
+            try:
+                live_recent[g] = cache.cached(f"live:{g}", lambda g=g: fetch.live(g),
+                                              ttl=7 * 24 * 3600)
+            except Exception:                               # noqa: BLE001
+                continue
+        mu = matchup.build(boot, fx, live_recent,
                            weight=cfg.get("matchup_weight", 0.0))
         worst = sorted(mu["by_team"].items(),
                        key=lambda kv: -max(kv[1]["index"].values()))[:3]
