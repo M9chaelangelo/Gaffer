@@ -79,6 +79,9 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
     wc = {g: m.add_variable(f"wc_{g}", cat="Binary") for g in gws}
     tc = {g: m.add_variable(f"tc_{g}", cat="Binary") for g in gws}
     bb = {g: m.add_variable(f"bb_{g}", cat="Binary") for g in gws}
+    # Bought AND sold inside the horizon. Constrained below, penalised in the
+    # objective: see the churn note further down.
+    churn = {i: m.add_variable(f"churn_{i}", lowBound=0, upBound=1) for i in P}
 
     # Chip effects must attach to the players actually involved. A flat credit
     # makes a chip look free of any squad decision, and the solver then just
@@ -143,6 +146,9 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
             # Scaled down because they commit far less than a full rebuild.
             obj.append(timing.wildcard_bonus(g, calendar, iv * 0.35, bk * 0.5)
                        * (bb[g] + tc[g]))
+    # Owning a player for a single week is a waste of two transfers.
+    obj.append(-cfg.get("churn_cost", 3.0)
+               * pulp.lpSum(churn[i] for i in P))
     m += pulp.lpSum(obj)
 
     for g in gws:
@@ -191,6 +197,22 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
             m += ft[g] <= ft[pg] - used[pg] + 1 - wc[pg]
         m += hits[g] >= moves - ft[g] - 15 * wc[g]
         m += wc[g] + tc[g] + bb[g] <= 1
+    # --- churn ---------------------------------------------------------
+    # A transfer's gain is priced, but owning someone for a single week was
+    # not. At a five-week horizon that was invisible; at eight the solver
+    # started buying a player for one fixture and selling him the next week,
+    # twice in the same line — each move "optimal" alone, together a waste
+    # of two transfers for one week of ownership.
+    #
+    # `churn[i]` is forced to 1 when a player is both bought and sold inside
+    # the horizon, and costs `churn_cost`. It deliberately does not grade by
+    # how long he was held: a sharper version needs a variable per player per
+    # pair of weeks, and the flat version already removes the behaviour that
+    # matters. If the ledger later shows four-week holds being punished
+    # unfairly, grade it then.
+    for i in P:
+        m += churn[i] >= (pulp.lpSum(tin[(i, g)] for g in gws)
+                          + pulp.lpSum(tout[(i, g)] for g in gws) - 1)
     for i in P:
         m += pulp.lpSum(tin[(i, g)] for g in gws) <= 1
         if i in squad_ids and not cfg.get("allow_rebuy", False):

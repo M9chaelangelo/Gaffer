@@ -3,7 +3,20 @@ entry_id: 3907632           # your FPL team id
 league_id: 88825            # FPL Aarhus Liga
 
 # --- how the gaffer thinks ---------------------------------------------------
-horizon: 5                  # gameweeks the TRANSFER plan looks ahead
+# Gameweeks the TRANSFER plan looks ahead. Raised 5 -> 8 on 16 Oct 2026 at
+# the manager's request, and it is defensible: a transfer is held for weeks,
+# so judging it over five and then living with it for ten undervalues the
+# players whose fixtures turn later. It also matches wildcard_horizon, so the
+# weekly plan and the rebuild are now judged over the same run.
+#
+# The cost is real and now visible. Projections decay with distance — the
+# points model beats a naive baseline by 7%, and most of that edge is in the
+# first few weeks — so weeks 6 to 8 are a ranking, not a forecast. And the
+# MILP gets harder: the GW7 solve used 101 of its 110 seconds at horizon 5.
+# time_limit went to 200 for that reason and the run now prints the solver's
+# status, so if it starts returning unproven plans you will see it rather
+# than infer it.
+horizon: 8
 # How far the CHIP SWEEP looks, which is a different question and until
 # 16 Oct 2026 silently shared the number above. "The best Bench Boost week"
 # meant "the best of the next five" while the chip survives to the GW19
@@ -109,7 +122,14 @@ pool_size: 130         # candidate players in the solve; higher is slower
 # feasible-but-unproven plan without saying so. The run reports the solver's
 # status now, and a non-optimal stop raises a guard, so this can be tuned on
 # evidence rather than guessed at.
-time_limit: 200        # seconds the solver may spend
+# Raised 200 -> 420 on 16 Oct 2026. The churn penalty couples every
+# player's transfer-in to his transfer-out across the whole horizon, which
+# made the eight-week solve materially harder: at 200s it hit the time
+# limit on every week and returned an unproven plan worth 6.8 points LESS
+# than the proven one it replaced — and moved a chip week while doing it.
+# A proven 595 beats an unproven 588. Actions runs are cheap; unproven
+# plans are not.
+time_limit: 420        # seconds the solver may spend
 hit_time_limit: 60     # shorter budget for the "is a hit worth it" re-solve
 elite_sample: 100      # how many of the world's top managers to sample
 
@@ -296,3 +316,12 @@ matchup_weeks: 8
 # back. Squads and managers turn over, so this is a starting guess, not a
 # verdict — and a promoted club has no history and falls back to the mean.
 matchup_prior_seasons: ["2024-25", "2025-26"]
+
+# What it costs to buy a player and sell him again inside the horizon.
+# A transfer-in and a transfer-out of the same player is two moves spent on
+# however many weeks he was held, and at a five-week horizon that never
+# surfaced. At eight the solver produced two such flips in one line. 3.0 is
+# below a hit (4) and above min_transfer_gain (1.5): enough to stop churn
+# that is barely worth it, not enough to block a genuinely good short hold
+# such as a one-week double gameweek.
+churn_cost: 3.0

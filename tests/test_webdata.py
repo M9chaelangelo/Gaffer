@@ -237,3 +237,20 @@ def test_the_fixture_ticker_is_exported_with_string_keys():
 
 def test_no_ticker_is_an_empty_map_not_a_missing_key():
     assert build()["ticker"] == {}
+
+
+def test_the_solver_status_survives_serialisation():
+    """Both week writers use hand-maintained allow-lists, so a new field is
+    computed, carried on the week, and then silently dropped on the way to
+    the file. solver_status did exactly that: every week in plan.json read
+    None as though the solver had never reported."""
+    import inspect
+
+    from gaffer import main as gmain
+    from gaffer import webdata
+
+    assert '"solver_status"' in inspect.getsource(webdata.build)
+    src = inspect.getsource(gmain)
+    i = src.find('"weeks": [{k: v for k, v in w.items()')
+    assert i > 0, "plan.json week allow-list not found"
+    assert "solver_status" in src[i:i + 400]
