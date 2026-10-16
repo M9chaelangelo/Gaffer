@@ -1,6 +1,6 @@
 {
  "gw": 7,
- "generated": "2026-10-16T09:46:47.478981+00:00",
+ "generated": "2026-10-16T09:58:12.453277+00:00",
  "weeks": [
   {
    "gw": 7,
@@ -269,9 +269,9 @@
       "own_league": 0.19047619047619047,
       "own_pack": 0.3,
       "own_elite": 0.31,
-      "own_overall": 0.147,
+      "own_overall": 0.146,
       "price_direction": "fall",
-      "net_transfers": -129246,
+      "net_transfers": -129999,
       "status": "d",
       "news": "Shoulder injury - 75% chance of playing"
      },
@@ -307,7 +307,7 @@
       "own_elite": 0.01,
       "own_overall": 0.023,
       "price_direction": "hold",
-      "net_transfers": -4257,
+      "net_transfers": -4267,
       "status": "a",
       "news": ""
      },
@@ -319,7 +319,7 @@
       "On set pieces, worth about +0.34 points per 90 before anything else happens.",
       "Leverage: 30% of the teams above you own the man you are selling, 0% own the one you are buying. You gain ground when he returns.",
       "The man leaving is flagged: Shoulder injury - 75% chance of playing.",
-      "He is also falling in price (-129,246 net transfers), so holding costs team value too."
+      "He is also falling in price (-129,999 net transfers), so holding costs team value too."
      ]
     }
    ]
@@ -371,7 +371,7 @@
       "own_elite": 0.13,
       "own_overall": 0.16699999999999998,
       "price_direction": "hold",
-      "net_transfers": -51158,
+      "net_transfers": -51041,
       "status": "a",
       "news": ""
      },
@@ -407,7 +407,7 @@
       "own_elite": 0.13,
       "own_overall": 0.14,
       "price_direction": "hold",
-      "net_transfers": 37452,
+      "net_transfers": 37845,
       "status": "a",
       "news": ""
      },
@@ -480,7 +480,7 @@
       "own_elite": 0.02,
       "own_overall": 0.025,
       "price_direction": "hold",
-      "net_transfers": -780,
+      "net_transfers": -768,
       "status": "a",
       "news": ""
      },
@@ -516,7 +516,7 @@
       "own_elite": null,
       "own_overall": 0.065,
       "price_direction": "hold",
-      "net_transfers": 42998,
+      "net_transfers": 43122,
       "status": "a",
       "news": ""
      },
@@ -557,7 +557,7 @@
       "own_elite": 0.99,
       "own_overall": 0.705,
       "price_direction": "rise",
-      "net_transfers": 461763,
+      "net_transfers": 463134,
       "status": "a",
       "news": ""
      },
@@ -593,7 +593,7 @@
       "own_elite": 0.22,
       "own_overall": 0.087,
       "price_direction": "hold",
-      "net_transfers": 7081,
+      "net_transfers": 7097,
       "status": "a",
       "news": ""
      },
@@ -653,7 +653,7 @@
       "own_elite": null,
       "own_overall": 0.065,
       "price_direction": "hold",
-      "net_transfers": 42998,
+      "net_transfers": 43122,
       "status": "a",
       "news": ""
      },
@@ -689,7 +689,7 @@
       "own_elite": 0.17,
       "own_overall": 0.332,
       "price_direction": "rise",
-      "net_transfers": 478913,
+      "net_transfers": 481458,
       "status": "a",
       "news": ""
      },
@@ -698,7 +698,7 @@
       "Shoots from better positions \u2014 expected goals per unit of threat 0.0079 vs 0.0065, which means his attempts come from inside the box rather than outside it.",
       "On set pieces, worth about +0.34 points per 90 before anything else happens.",
       "Reduces risk rather than adding leverage \u2014 30% of your pack already own him.",
-      "The incoming player is rising (+478,913 net), so acting now is cheaper than acting later."
+      "The incoming player is rising (+481,458 net), so acting now is cheaper than acting later."
      ]
     }
    ]
