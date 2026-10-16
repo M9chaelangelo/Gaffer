@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 
 import yaml
 
-from . import (fetch, league, projections, prices, optimise, report, timing,
-               styles, elite, explain, defence, calibrate, rotation, planner,
-               webdata, wildcard, teamform)
+from . import (fetch, imminent, league, projections, prices, optimise, report,
+               timing, styles, elite, explain, defence, calibrate, rotation,
+               planner, webdata, wildcard, teamform)
 
 
 def resolve_names(proj, names):
@@ -359,11 +359,22 @@ def main():
     # repo; it reads data.json. The server-rendered page is still written, as
     # report.html — it needs no JavaScript and is the thing that still works if
     # the app breaks or the browser is ancient.
+    # Who is due a return. One request per finished gameweek in the window,
+    # and a failure here must not cost the solve — it is a diagnostic.
+    try:
+        window = [g for g in range(max(1, gw - imminent.WINDOW), gw)]
+        due = imminent.build(boot, {g: fetch.live(g) for g in window}, proj)
+        print(f"  overdue tables built from GW{window[0]}-GW{window[-1]}"
+              if window else "  no finished gameweeks yet for overdue tables")
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  (could not build the overdue tables: {e})")
+        due = None
+
     data = webdata.build(proj, prof, lg, elite_own, pf, gws, squad_ids, weeks,
                          deadline, gw, planner=graded, hit_verdict=verdict,
                          clean_sheets=cs_table, wildcard=wc_draft,
                          team_form=form_table, strengths=strengths,
-                         ticker=ticker)
+                         ticker=ticker, imminent=due)
     webdata.write(data, cfg["out_dir"])
 
     out = os.path.join(cfg["out_dir"], "report.html")

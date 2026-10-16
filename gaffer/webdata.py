@@ -60,7 +60,8 @@ METRICS = [
 
 def build(proj, prof, lg, elite_own, price_fc, gws, squad_ids, weeks,
           deadline, gw, planner=None, hit_verdict=None, clean_sheets=None,
-          wildcard=None, team_form=None, strengths=None, ticker=None):
+          wildcard=None, team_form=None, strengths=None, ticker=None,
+          imminent=None):
     """Assemble the page's dataset."""
     cards = {}
     for pid in proj:
@@ -156,6 +157,7 @@ def build(proj, prof, lg, elite_own, price_fc, gws, squad_ids, weeks,
             if now else None),
         # What is wrong with the eleven: who is being out-scored, how exposed
         # the bench is, which clubs the week turns on.
+        "imminent": imminent,
         "diagnosis": (analysis.build(
             list(cards.values()),
             [p["id"] for p in now["xi"]],
