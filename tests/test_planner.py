@@ -229,10 +229,30 @@ def test_an_unknown_chip_is_rejected_by_name():
     assert "limitless" in v[0].message
 
 
-def test_first_half_chips_expire_at_gw19():
+def test_a_first_half_chip_expires_at_gw19_and_a_second_set_follows():
+    """FPL issues TWO sets of chips, and this test used to deny the second.
+
+    It asserted every chip's window ended at GW19 whatever the horizon, so
+    from GW20 on no chip had any window at all and the engine would have
+    quietly stopped planning chips for the rest of the season. Holding a
+    chip in the first half and holding it in the second are separate facts.
+    """
     windows = chip_windows(list(range(15, 25)))
     for chip in CHIP_NAMES:
-        assert max(windows[chip]) == 19
+        assert min(windows[chip]) == 15
+        assert max(windows[chip]) == 24, "the second set runs past GW19"
+
+
+def test_a_chip_spent_in_the_first_half_still_has_a_second_half_window():
+    windows = chip_windows(list(range(15, 25)), spent=("wc",))
+    assert windows["wc"] == [20, 21, 22, 23, 24]
+    assert 19 in windows["bb"], "an unspent chip keeps its first-half weeks"
+
+
+def test_a_chip_spent_in_both_halves_has_no_window_at_all():
+    windows = chip_windows(list(range(15, 25)),
+                           spent=("wc",), spent_second=("wc",))
+    assert "wc" not in windows
 
 
 # --- the rules that bite ------------------------------------------------
@@ -470,9 +490,9 @@ def test_a_typo_in_chips_used_is_reported_not_ignored():
     assert g["chips_used"] == []
 
 
-def test_a_spent_chip_has_no_window():
-    windows = chip_windows(list(range(15, 25)), spent=("wc",))
-    assert "wc" not in windows
+def test_a_spent_chip_has_no_window_inside_the_half_it_was_spent():
+    windows = chip_windows(list(range(15, 20)), spent=("wc",))
+    assert "wc" not in windows, "no second-half weeks in this horizon"
     assert max(windows["bb"]) == 19
 
 
