@@ -104,7 +104,12 @@ team_form_half_life: 2.5  # in matches: at 2.5 the game before last counts ~3/4
 # --- output ------------------------------------------------------------------
 out_dir: docs
 pool_size: 130         # candidate players in the solve; higher is slower
-time_limit: 110        # seconds the solver may spend
+# Seconds the solver may spend. Raised 110 -> 200 on 16 Oct 2026: the GW7
+# solve used 101 of its 110, which means it was at the edge of returning a
+# feasible-but-unproven plan without saying so. The run reports the solver's
+# status now, and a non-optimal stop raises a guard, so this can be tuned on
+# evidence rather than guessed at.
+time_limit: 200        # seconds the solver may spend
 hit_time_limit: 60     # shorter budget for the "is a hit worth it" re-solve
 elite_sample: 100      # how many of the world's top managers to sample
 

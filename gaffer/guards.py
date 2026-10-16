@@ -146,6 +146,21 @@ def check_squad_pin(cfg, solved_gw):
     return []
 
 
+def check_solver(weeks):
+    """A time-limited solve is a good answer, not a proven best one.
+
+    pulp returns its status and the engine discarded it, so a plan that ran
+    out of seconds looked exactly like one that was proved optimal.
+    """
+    for w in (weeks or [])[:1]:
+        st = w.get("solver_status")
+        if st and st != "Optimal":
+            return [_v("solver-not-optimal",
+                       f"the solver stopped at '{st}' — this is a feasible "
+                       f"plan, not a proven best one")]
+    return []
+
+
 def check(cfg, weeks, solved_gw, chips_used=()):
     """Every invariant, in one call."""
     out = []
@@ -153,6 +168,7 @@ def check(cfg, weeks, solved_gw, chips_used=()):
     out += check_week_ep(weeks)
     out += check_lineup(weeks)
     out += check_squad_pin(cfg, solved_gw)
+    out += check_solver(weeks)
     return out
 
 

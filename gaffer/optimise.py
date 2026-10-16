@@ -216,7 +216,12 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
     m += pulp.lpSum(wc.values()) + pulp.lpSum(tc.values()) \
          + pulp.lpSum(bb.values()) <= cfg.get("max_chips_in_horizon", 1)
 
-    solver.solve(m, cfg.get("time_limit", 240))
+    # The solver's own verdict, which was being thrown away. A MILP that
+    # hits its time limit returns a good feasible answer, not a proven best
+    # one, and the difference is invisible on the page unless it is said.
+    # On 16 Oct the solve used 101 of its 110 seconds, so this is not
+    # hypothetical.
+    status = solver.solve(m, cfg.get("time_limit", 240))
 
     out = []
     for g in gws:
@@ -246,6 +251,8 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
         ins = [P[i] for i in P if tin[(i, g)].value() > 0.5]
         outs = [P[i] for i in P if tout[(i, g)].value() > 0.5]
         out.append({
+            "solver_status": status,
+            "optimal": status == "Optimal",
             "gw": g,
             "in": [p["name"] for p in ins],
             "out": [p["name"] for p in outs],
