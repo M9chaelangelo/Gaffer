@@ -20,7 +20,7 @@ from sklearn.metrics import mean_absolute_error, roc_auc_score
 from sklearn.model_selection import GroupKFold
 import joblib
 
-from . import data
+from .. import data
 
 MODELS = "models"
 

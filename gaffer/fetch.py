@@ -27,6 +27,16 @@ def fixtures():
     return _get(f"{FPL}/fixtures/")
 
 
+def live(gw):
+    """Every player's stats for one finished gameweek, Opta xG and xA included.
+
+    One request per gameweek, not per player, which is what makes a recent-form
+    expected-goals table affordable at all: `element-summary` would be ~600
+    requests for the same window.
+    """
+    return _get(f"{FPL}/event/{gw}/live/")
+
+
 def history(entry_id):
     """Season history for an entry — and, in `chips`, every chip it has played.
 

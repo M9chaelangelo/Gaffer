@@ -4,9 +4,10 @@ from datetime import datetime, timezone
 
 import yaml
 
-from . import (fetch, league, projections, prices, optimise, report, timing,
-               styles, elite, explain, defence, calibrate, rotation, planner,
-               webdata, wildcard, teamform)
+from . import (fetch, games, guards, imminent, league, projections, prices,
+               optimise, report, timing, styles, elite, explain, defence,
+               calibrate, rotation, planner, webdata, wildcard, teamform)
+from .learn import ledger
 
 
 def resolve_names(proj, names):
@@ -359,11 +360,75 @@ def main():
     # repo; it reads data.json. The server-rendered page is still written, as
     # report.html — it needs no JavaScript and is the thing that still works if
     # the app breaks or the browser is ancient.
+    # --- invariants -------------------------------------------------------
+    # Every defect found in this engine was legal, in-range, confident and
+    # wrong — a spent chip ranked best on the page, a Bench Boost week
+    # understated by 22 points, a squad pin three days out of date. These
+    # assert what must be true of any answer before a human reads it.
+    bad = guards.check(cfg, weeks, gw, planner.chips_used(cfg)[0])
+    print(guards.render(bad))
+    if any(v["fatal"] for v in bad):
+        print("  !! the plan above is NOT trustworthy — fix the fatals first")
+
+    # --- the ledger -------------------------------------------------------
+    # Record what we expect before it happens, settle what already did.
+    # Nothing else in the engine can tell whether any of it works.
+    led_dir = os.path.join(cfg["out_dir"], "ledger")
+    sc = None
+    try:
+        first = weeks[0] if weeks else {}
+        xi_ids = {p["id"] for p in (first.get("xi") or [])}
+        cap_id = (first.get("captain") or {}).get("id")
+        rows = []
+        for pid in squad_ids:
+            p = proj.get(pid) or {}
+            rows.append({"id": pid, "name": p.get("name"), "pos": p.get("pos"),
+                         "team": p.get("team"), "price": p.get("price"),
+                         "ep": (p.get("ep") or {}).get(gw),
+                         "start_prob": p.get("start_prob"), "in_squad": True,
+                         "role": "xi" if pid in xi_ids else "bench",
+                         "captain": pid == cap_id})
+        n = ledger.record(led_dir, "fpl", gw, rows, {"chip": first.get("chip")})
+        print(f"  ledger: recorded {n} predictions for GW{gw}")
+
+        preds = ledger.latest_predictions(led_dir, "fpl")
+        done = {r["gw"] for r in ledger.joined(led_dir, "fpl")}
+        for g in sorted({k[1] for k in preds if k[1] < gw} - done):
+            ids = {k[2] for k in preds if k[1] == g}
+            live = fetch.live(g) or {}
+            actual = {e["id"]: (e.get("stats") or {}).get("total_points", 0)
+                      for e in live.get("elements", []) if e["id"] in ids}
+            if actual:
+                ledger.settle(led_dir, "fpl", g, actual)
+                print(f"  ledger: settled GW{g} ({len(actual)} players)")
+
+        sc = ledger.score(led_dir, "fpl")
+        if sc.get("n"):
+            print(f"  ledger: {sc['n']} scored, MAE {sc['mae']}, "
+                  f"bias {sc['bias']:+.2f}, skill vs naive {sc.get('skill')}")
+            for w in sc["weeks"][-3:]:
+                print(f"    GW{w['gw']}: projected XI {w['xi_projected']}, "
+                      f"actual {w['xi_actual']}, bias {w['bias']:+.2f}")
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  (ledger unavailable: {e})")
+
+    # Who is due a return. One request per finished gameweek in the window,
+    # and a failure here must not cost the solve — it is a diagnostic.
+    try:
+        window = [g for g in range(max(1, gw - imminent.WINDOW), gw)]
+        due = imminent.build(boot, {g: fetch.live(g) for g in window}, proj)
+        print(f"  overdue tables built from GW{window[0]}-GW{window[-1]}"
+              if window else "  no finished gameweeks yet for overdue tables")
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  (could not build the overdue tables: {e})")
+        due = None
+
     data = webdata.build(proj, prof, lg, elite_own, pf, gws, squad_ids, weeks,
                          deadline, gw, planner=graded, hit_verdict=verdict,
                          clean_sheets=cs_table, wildcard=wc_draft,
                          team_form=form_table, strengths=strengths,
-                         ticker=ticker)
+                         ticker=ticker, imminent=due,
+                         guards=bad, ledger=sc)
     webdata.write(data, cfg["out_dir"])
 
     out = os.path.join(cfg["out_dir"], "report.html")
