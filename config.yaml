@@ -3,7 +3,7 @@ entry_id: 3907632           # your FPL team id
 league_id: 88825            # FPL Aarhus Liga
 
 # --- how the gaffer thinks ---------------------------------------------------
-horizon: 5                  # gameweeks to plan ahead
+horizon: 13                 # GW7-19: the whole first-half chip window
 decay: 0.87                 # weight on each future gameweek (near-term certainty)
 hit_cost: 4                 # points per extra transfer
 hit_threshold: 6.0
@@ -98,7 +98,7 @@ team_form_half_life: 2.5  # in matches: at 2.5 the game before last counts ~3/4
 # --- output ------------------------------------------------------------------
 out_dir: docs
 pool_size: 130         # candidate players in the solve; higher is slower
-time_limit: 110        # seconds the solver may spend
+time_limit: 240        # seconds the solver may spend
 hit_time_limit: 60     # shorter budget for the "is a hit worth it" re-solve
 elite_sample: 100      # how many of the world's top managers to sample
 
