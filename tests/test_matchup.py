@@ -170,3 +170,40 @@ def test_a_profile_with_unmeasured_positions_can_be_summarised():
     for r in out["by_team"].values():
         vals = [v for v in r["index"].values() if v is not None]
         assert max(vals) if vals else True      # must not raise
+
+
+# --- goalkeepers are matched on the opponent's attack -----------------------
+
+def test_a_keeper_is_matched_on_what_he_faces_not_what_they_concede():
+    """Keepers score ~0.003 goals a game between them, so "what does this
+    defence concede to goalkeepers" is not a question worth asking. A
+    keeper's points come from clean sheets, so the matchup that decides his
+    week is the opponent's ATTACK.
+    """
+    attack = {2: 0.80, 3: 1.25}          # 2 are toothless, 3 are dangerous
+    soft = matchup.multiplier({}, 2, "GKP", weight=1.0, attack=attack)
+    hard = matchup.multiplier({}, 3, "GKP", weight=1.0, attack=attack)
+    assert soft > 1.0 > hard, "a weak attack opposite is worth more to a keeper"
+    assert matchup.multiplier({}, 2, "DEF", weight=1.0, attack=attack) > 1.0
+
+
+def test_a_midfielder_is_still_matched_on_what_the_defence_concedes():
+    prof = {2: {"index": {"MID": 1.25}}}
+    assert matchup.multiplier(prof, 2, "MID", weight=1.0,
+                              attack={2: 0.80}) > 1.0
+
+
+def test_an_unknown_attack_is_neutral_for_a_keeper():
+    assert matchup.multiplier({}, 99, "GKP", weight=1.0, attack={}) == 1.0
+
+
+def test_attack_index_ranks_scoring_sides_above_toothless_ones():
+    fx = ([{"event": g, "team_h": 1, "team_a": 2, "finished": True,
+            "team_h_score": 3, "team_a_score": 0} for g in range(1, 7)])
+    ai = matchup.attack_index(fx, [1, 2])
+    assert ai[1] > ai[2]
+    assert matchup.CLAMP[0] <= ai[2] <= matchup.CLAMP[1]
+
+
+def test_attack_index_is_none_before_any_match_is_played():
+    assert matchup.attack_index([], [1, 2]) == {1: None, 2: None}

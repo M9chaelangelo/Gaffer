@@ -21,6 +21,20 @@ Three things are derivable from feeds already pulled, with no extra calls:
   the closest proxy available for being got at from corners, since FPL does
   not publish a set-piece flag on goals.
 
+## Goalkeepers are the other direction
+
+"What does this defence concede to goalkeepers" is not a question worth
+asking: keepers score about three goals per thousand games between them.
+A goalkeeper's points come from clean sheets and saves, so the matchup
+that decides his week is the opponent's ATTACK, not their defence. The
+same is largely true of defenders, who earn more from a clean sheet than
+from the occasional header.
+
+So the profile carries an `attack_index` per club — goals scored per game
+against the league average — and the multiplier for a goalkeeper or a
+defender reads that, inverted: a weak attack opposite is what makes a
+clean sheet, and a clean sheet is what makes the position pay.
+
 ## Why the default weight is zero
 
 Six gameweeks in, a team has conceded perhaps a dozen goals. Split four
@@ -146,7 +160,39 @@ def concession_by_position(boot, fixtures, live_by_gw, prior=None):
     return out, league
 
 
-def multiplier(profile, opponent_id, pos, weight=0.0):
+def attack_index(fixtures, teams, prior_games=PRIOR_GAMES):
+    """Goals scored per game against the league average, shrunk and clamped.
+
+    This is the matchup that matters to a goalkeeper or a defender: what
+    they face, not what the opposite defence gives up.
+    """
+    done = _finished(fixtures)
+    scored = {t: 0 for t in teams}
+    games = {t: 0 for t in teams}
+    for f in done:
+        h, a = f["team_h"], f["team_a"]
+        hs, as_ = int(f["team_h_score"]), int(f["team_a_score"])
+        if h in scored:
+            scored[h] += hs; games[h] += 1
+        if a in scored:
+            scored[a] += as_; games[a] += 1
+    total_games = sum(games.values())
+    if not total_games:
+        return {t: None for t in teams}
+    avg = sum(scored.values()) / total_games
+    out = {}
+    for t in teams:
+        n = games[t]
+        if not n or avg <= 0:
+            out[t] = None
+            continue
+        w = n / (n + prior_games)
+        out[t] = round(max(CLAMP[0], min(CLAMP[1],
+                                         w * ((scored[t] / n) / avg) + (1 - w))), 3)
+    return out
+
+
+def multiplier(profile, opponent_id, pos, weight=0.0, attack=None):
     """How much to tilt a projection for this opponent, at `weight`.
 
     weight 0 returns exactly 1.0, so the signal can ship and be measured
@@ -154,6 +200,15 @@ def multiplier(profile, opponent_id, pos, weight=0.0):
     """
     if not weight:
         return 1.0
+    if pos in ("GKP", "DEF"):
+        # A keeper's week is decided by the opponent's attack, not by what
+        # their defence concedes to keepers. Inverted: a weak attack
+        # opposite is worth MORE to him, so the multiplier rises as the
+        # opponent's attack index falls.
+        ai = (attack or {}).get(opponent_id)
+        if ai is None:
+            return 1.0
+        return max(CLAMP[0], min(CLAMP[1], 1.0 + weight * (1.0 / ai - 1.0)))
     idx = ((profile or {}).get(opponent_id) or {}).get("index", {}).get(pos)
     if idx is None:          # unmeasured position, or unknown opponent
         return 1.0
@@ -164,12 +219,16 @@ def build(boot, fixtures, live_by_gw, weight=0.0, prior=None):
     names = {t["id"]: t["short_name"] for t in boot["teams"]}
     profile, league = concession_by_position(boot, fixtures, live_by_gw,
                                              prior=prior)
-    venues = venue_splits(fixtures, [t["id"] for t in boot["teams"]])
+    ids = [t["id"] for t in boot["teams"]]
+    venues = venue_splits(fixtures, ids)
+    attack = attack_index(fixtures, ids)
     return {
         "weight": weight,
         "league_per_game": {p: round(v, 3) for p, v in league.items()},
-        "by_team": {names[t]: {**row, "venue": venues.get(t)}
+        "by_team": {names[t]: {**row, "venue": venues.get(t),
+                               "attack_index": attack.get(t)}
                     for t, row in profile.items()},
+        "attack_index": {names[t]: v for t, v in attack.items()},
         "prior_teams": sorted(prior or {}),
         "note": ("Concession split by the position that scored, shrunk with 8 "
                  "games of prior toward last season's profile where there is "
@@ -177,7 +236,9 @@ def build(boot, fixtures, live_by_gw, weight=0.0, prior=None):
                  "league baseline is under "
                  f"{MIN_BASELINE} goals a game reports null rather than a "
                  "ratio with no denominator. weight 0.0 means it is measured "
-                 "and reported but does not move a projection."),
+                 "and reported but does not move a projection. Goalkeepers "
+                 "and defenders are matched on the opponent's attack_index "
+                 "instead, because their points come from clean sheets."),
     }
 
 
