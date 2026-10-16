@@ -43,13 +43,24 @@ def ep_next(p, gws=None):
     return ep(p, (gws or [None])[0])
 
 
-def horizon(p, gws):
-    """Projected points over the whole horizon, raw or card."""
+def horizon(p, gws=None):
+    """Projected points over the horizon, raw or card.
+
+    `gws` None means every gameweek the row carries. A caller that does not
+    know the horizon should pass nothing rather than a placeholder: summing
+    `e.get(None)` returns 0.0, which reads as "will score nothing" instead
+    of "I did not say which weeks".
+    """
     e = (p or {}).get("ep")
     if isinstance(e, dict):
-        return float(sum(e.get(g, 0.0) or 0.0 for g in gws))
+        keys = list(e) if gws is None else [g for g in gws if g is not None]
+        if not keys:
+            keys = list(e)
+        return float(sum(e.get(g, 0.0) or 0.0 for g in keys))
     v = (p or {}).get("ep_horizon")
-    return float(v) if v is not None else ep_next(p, gws) * len(gws)
+    if v is not None:
+        return float(v)
+    return ep_next(p, gws) * (len(gws) if gws else 1)
 
 
 def start_prob(p, default=None):

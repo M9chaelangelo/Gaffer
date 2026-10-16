@@ -51,3 +51,14 @@ def test_no_module_reads_a_card_field_off_a_raw_row_any_more():
         src = inspect.getsource(mod)
         for bad in ('.get("ep_next")', '.get("start_prob")', '.get("ep_horizon")'):
             assert bad not in src, f"{mod.__name__} still reads {bad} directly"
+
+
+def test_horizon_without_a_gameweek_list_sums_what_the_row_has():
+    """A caller that does not know the horizon must not get 0.0.
+
+    Passing a placeholder [None] made `e.get(None)` miss every key and
+    return 0.0 — which reads as 'will score nothing', not 'unspecified'.
+    """
+    assert projview.horizon(RAW) == 12.0
+    assert projview.horizon(RAW, [None]) == 12.0
+    assert projview.horizon(RAW, [7, 8]) == 9.0

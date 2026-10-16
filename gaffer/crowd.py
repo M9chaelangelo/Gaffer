@@ -108,7 +108,7 @@ def versus_elite(squad_ids, el, proj, boot=None, limit=12, min_gap=0.15):
                         "team": p.get("team"), "pos": p.get("pos"),
                         "price": p.get("price"), "elite": round(share, 4),
                         "ep_next": projview.ep_next(p),
-                        "ep_horizon": projview.horizon(p, [None])})
+                        "ep_horizon": projview.horizon(p)})
     for pid in squad:
         p = proj.get(pid) or {}
         share = own.get(pid, 0.0)

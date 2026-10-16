@@ -78,3 +78,17 @@ def test_the_block_states_that_upcoming_picks_are_not_public():
     """The honest constraint: nobody can see this week before the deadline."""
     out = crowd.build(boot(), {"n": 100, "own": {}}, PROJ, [11])
     assert "last finished gameweek" in out["note"]
+
+
+def test_ep_next_is_read_off_the_gameweek_keyed_projection():
+    """proj rows carry `ep` keyed by gameweek and have no `ep_next` key.
+
+    Reading `ep_next` straight off them returned None on every row, so the
+    elite captains table printed with no numbers in it at all.
+    """
+    el = {"n": 100, "captains": {11: 0.29}}
+    proj = {11: {"name": "Haaland", "team": "MCI", "ep": {7: 8.95, 8: 8.77}}}
+    assert crowd.elite_captains(el, proj)[0]["ep_next"] == 8.95
+
+    out = crowd.versus_elite([], {"n": 1, "own": {11: 0.99}}, proj)
+    assert out["they_own_you_do_not"][0]["ep_next"] == 8.95
