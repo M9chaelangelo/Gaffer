@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import yaml
 
-from . import (fetch, games, guards, imminent, league, projections, prices,
+from . import (crowd, fetch, games, guards, imminent, league, projections, prices,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
 from .learn import ledger
@@ -309,6 +309,7 @@ def main():
     except Exception as e:
         print(f"  elite sample unavailable ({e})")
         elite_own = {}
+        el = None
 
     pf = prices.forecast(boot)
     watch = sorted(
@@ -360,6 +361,27 @@ def main():
     # repo; it reads data.json. The server-rendered page is still written, as
     # report.html — it needs no JavaScript and is the thing that still works if
     # the app breaks or the browser is ancient.
+    # --- what everyone else is doing --------------------------------------
+    # Three of these four signals were already being computed and thrown
+    # away: the elite's captains, their chips, and the whole game's chip
+    # usage per gameweek, which nothing had ever read.
+    try:
+        pack = crowd.build(boot, el, proj, squad_ids)
+        bb = pack["bench_boost_appetite"]
+        print(f"  crowd: Bench Boost spent by {bb['share_spent']:.1%} of the "
+              f"game so far, busiest GW{bb['busiest_gw']} "
+              f"({bb['busiest_share']:.1%})")
+        ec = pack["elite_chips_last_gw"]
+        if ec.get("played"):
+            print(f"    elite chips in GW{last}: " + ", ".join(
+                f"{k} {v:.0%}" for k, v in ec["played"].items()))
+        if pack["elite_captains"]:
+            print("    elite captains: " + ", ".join(
+                f"{r['name']} {r['share']:.0%}" for r in pack["elite_captains"][:4]))
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  (crowd signals unavailable: {e})")
+        pack = None
+
     # --- invariants -------------------------------------------------------
     # Every defect found in this engine was legal, in-range, confident and
     # wrong — a spent chip ranked best on the page, a Bench Boost week
@@ -428,7 +450,7 @@ def main():
                          clean_sheets=cs_table, wildcard=wc_draft,
                          team_form=form_table, strengths=strengths,
                          ticker=ticker, imminent=due,
-                         guards=bad, ledger=sc)
+                         guards=bad, ledger=sc, crowd=pack)
     webdata.write(data, cfg["out_dir"])
 
     out = os.path.join(cfg["out_dir"], "report.html")
