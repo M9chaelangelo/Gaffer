@@ -214,7 +214,42 @@ wildcard_time_limit: 180   # seconds
 # declared here. Check the UEFA calendar and update; a wrong list is worse than
 # an empty one.
 european_teams: [MCI, ARS, LIV, CHE, NEW, TOT, AVL, NFO]
-european_weeks: [7, 8, 10, 13, 16, 18]
+# Gameweeks that FOLLOW a European midweek, so the haircut lands on the
+# league game the rotation actually shows up in.
+#
+# Corrected 16 Oct 2026 against Ben Crellin's season calendar. The old list
+# [7, 8, 10, 13, 16, 18] had GW13 and GW18 as European weeks when neither
+# is, and missed GW12, GW15, GW22 and GW23 — so eight clubs' minutes were
+# being discounted in the wrong weeks. GW7, GW8 and GW10 were right, which
+# is why nothing in the current horizon moves.
+#
+#   MD2  Oct 13 -> GW7      MD6  Dec  8 -> GW15
+#   MD3  Oct 20 -> GW8      MD6* Dec 15 -> GW16
+#   MD4  Nov  3 -> GW10     MD7  Jan 19 -> GW22
+#   MD5  Nov 24 -> GW12     MD8  Jan 26 -> GW23
+#
+# Knockouts from February are in `blank_gws`/`double_gws` territory and are
+# listed there rather than here.
+european_weeks: [7, 8, 10, 12, 15, 16, 22, 23]
+
+# --- blanks and doubles ------------------------------------------------------
+# Source: Ben Crellin's season calendar, read from a screenshot on 16 Oct
+# 2026. This is a FORECAST from cup progression, not a fixture list: the FPL
+# API will not show a rescheduled match until it is actually rescheduled, so
+# these are months ahead of anything the engine can derive. That is exactly
+# why they are declared by hand — it is the one input the model cannot
+# produce for itself.
+#
+# Nothing here falls before GW19, which independently confirms the engine's
+# own finding that the first-half Free Hit has no natural home: there is no
+# blank to use it on before it expires.
+#
+# Confidence is the calendar's own, not mine. Re-read it as cups resolve;
+# a semi-final result moves these.
+blank_gws: [30, 33]              # red on the calendar: Mar 20, Apr 24
+possible_blank_gws: [37]         # May 22
+double_gws: [32, 35, 36]         # yellow, "Likely DGW": Apr 17, May 8, May 15
+possible_double_gws: []          # none read with confidence from the screenshot
 european_haircut: 0.12    # minutes lost in a European week
 midweek_haircut: 0.06     # minutes lost in a domestic midweek round
 
