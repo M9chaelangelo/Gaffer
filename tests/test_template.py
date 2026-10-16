@@ -72,3 +72,49 @@ def test_affordability_is_reported_not_silently_filtered():
     pr = {1: P(1, "Expensive", "MID", 9.0, price=14.0)}
     rows = template.buy_leverage([], {}, pr, [7], bank=0.5)
     assert rows[0]["affordable"] is False
+
+
+SQUADS = {
+    11: {"name": "Ballon d'Orgu", "manager": "A B", "rank": 1, "total": 500,
+         "picks": list(range(1, 16)), "captain": 15},
+    22: {"name": "Grosen FC", "manager": "C Grosen", "rank": 7, "total": 420,
+         "picks": list(range(2, 17)), "captain": 9},
+}
+
+
+def test_a_rival_is_found_by_team_name_or_manager_name():
+    pr = pool()
+    for key in ("grosen", "GROSEN FC", "C Grosen"):
+        r = template.rival(SQUADS, pr, 7, name=key)
+        assert r and r["name"] == "Grosen FC"
+
+
+def test_a_rival_can_be_found_by_rank():
+    r = template.rival(SQUADS, pool(), 7, rank=1)
+    assert r["name"] == "Ballon d'Orgu" and r["total"] == 500
+
+
+def test_an_unknown_rival_returns_nothing_rather_than_the_wrong_team():
+    assert template.rival(SQUADS, pool(), 7, name="nobody here") is None
+
+
+def test_a_rival_comes_back_with_a_legal_eleven_and_their_captain():
+    r = template.rival(SQUADS, pool(), 7, rank=1)
+    assert len(r["xi"]["xi"]) == 11
+    assert len(r["squad"]) == 15
+    assert r["captain"] is not None
+
+
+def test_overall_ownership_is_a_fraction_not_a_percentage():
+    """`selected_by_percent` is 0-100; the edge maths needs 0-1.
+
+    Feeding percentages straight in would make every player read as 7500%
+    owned and every differential look worthless.
+    """
+    pr = {1: {"id": 1, "own": 75.5, "pos": "MID", "ep": {7: 5.0}}}
+    assert template.overall_own(pr)[1] == 0.755
+
+
+def test_standings_are_ordered_by_rank():
+    rows = template.standings(SQUADS)
+    assert [r["rank"] for r in rows] == [1, 7]

@@ -169,4 +169,62 @@ def build(squad_ids, lg, proj, gws, bank=0.0, sell=None, elite_own=None):
     }
     if elite_own:
         out["template_elite"] = template_xi(elite_own, proj, gw)
+    out["template_overall"] = template_xi(overall_own(proj), proj, gw)
+    squads = (lg or {}).get("squads") or {}
+    out["standings"] = standings(squads)
+    out["leader"] = rival(squads, proj, gw, rank=1)
+    out["rivals"] = {r["name"]: rival(squads, proj, gw, entry=e)
+                     for e, r in list(squads.items())[:60] if r.get("name")}
     return out
+
+
+def overall_own(proj):
+    """Whole-game ownership, from `selected_by_percent` on every player.
+
+    The global template is a different thing from the league template and
+    answers a different question: it is who you are exposed to in overall
+    rank, not who you are racing in a 42-team league. Both are worth seeing
+    because they disagree — a player at 60% globally and 20% in your league
+    is a risk to your rank and an opportunity against your rivals.
+    """
+    return {i: (p.get("own") or 0.0) / 100.0 for i, p in (proj or {}).items()}
+
+
+def rival(squads, proj, gw, name=None, entry=None, rank=None):
+    """One named rival's actual squad, as their best legal eleven.
+
+    Matching is on a substring of the team name or the manager name, case
+    insensitive, because a manager asking about "Grosen" will not know the
+    entry id.
+    """
+    rows = list((squads or {}).values())
+    pick = None
+    if entry is not None and entry in (squads or {}):
+        pick = squads[entry]
+    elif rank is not None:
+        pick = next((r for r in rows if r.get("rank") == rank), None)
+    elif name:
+        key = str(name).strip().lower()
+        pick = next((r for r in rows
+                     if key in str(r.get("name") or "").lower()
+                     or key in str(r.get("manager") or "").lower()), None)
+    if not pick:
+        return None
+    xi = best_xi(pick.get("picks") or [], proj, gw)
+    cap = proj.get(pick.get("captain")) or {}
+    return {"name": pick.get("name"), "manager": pick.get("manager"),
+            "rank": pick.get("rank"), "total": pick.get("total"),
+            "captain": cap.get("name"), "xi": xi,
+            "squad": [{"id": i, "name": (proj.get(i) or {}).get("name"),
+                       "pos": (proj.get(i) or {}).get("pos"),
+                       "price": (proj.get(i) or {}).get("price"),
+                       "ep": round(_ep(proj.get(i) or {}, gw), 2)}
+                      for i in (pick.get("picks") or [])]}
+
+
+def standings(squads, limit=10):
+    """The league table, so a rival can be named rather than guessed at."""
+    rows = sorted((squads or {}).values(), key=lambda r: r.get("rank") or 1e9)
+    return [{"rank": r.get("rank"), "name": r.get("name"),
+             "manager": r.get("manager"), "total": r.get("total")}
+            for r in rows[:limit]]
