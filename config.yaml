@@ -45,7 +45,28 @@ rival_depth: 10             # how many teams above you count as "the pack"
 # --- projections -------------------------------------------------------------
 solio_url: https://fpl.solioanalytics.com/api/data/latest.json
 solio_weight: 0.7         # trust Solio over the local model where both exist
-form_weight: 0.30         # weight on a PLAYER's recent form vs his season rate
+# Weight on a PLAYER's recent form against his season rate.
+#
+# Lowered 0.30 -> 0.15 on 16 Oct 2026. FPL's `form` field is POINTS per match
+# over the last 30 days, and points include over-performance, so this dial
+# rewards a player for finishing above his expected goals and then projects
+# the luck forward. Measured the same day with the new overdue tables:
+# Semenyo's expected goals, assists, appearance and defensive numbers support
+# 3.02 points a week; the model said 6.47. He has banked about 3.2 goal
+# involvements above expectation on an xG90 of 0.057. The engine recommended
+# selling Saka — owed 1.67 involvements on 0.85 xGI90 — to buy him. That
+# recommendation was withdrawn.
+#
+# Not set to zero: form genuinely carries information a season total cannot,
+# such as a player newly on penalties or newly starting. 0.15 keeps that and
+# halves the amplification of luck.
+#
+# NOTE this is a dampener, not the cure. The base rate underneath is
+# `total_points / 90`, which embeds over-performance whether or not this dial
+# is zero. The real fix is to blend the base toward what xG and xA support.
+# Do that once the ledger has enough settled gameweeks to measure whether it
+# helps — see LEARNINGS.md point 4 and docs/ledger/.
+form_weight: 0.15
 strength_weight: 0.5      # weight on measured team attack/defence vs FPL fixture rating
 # And the same idea for the TEAM. Season-long expected goals move slowly: a side
 # that was poor in August and has been excellent since scores as mediocre until
