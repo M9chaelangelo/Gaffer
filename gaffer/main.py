@@ -575,8 +575,13 @@ def main():
                    "planner": graded, "wildcard": wc_draft, "proj": proj,
                    "team_form": form_table}, out)
     json.dump({"gw": gw, "generated": datetime.now(timezone.utc).isoformat(),
+               # Allow-list, so adding a field to a week does not silently
+               # fail to reach the file — which is exactly what happened to
+               # solver_status: recorded on every week, dropped here, and the
+               # plan read `None` as though the solver had never spoken.
                "weeks": [{k: v for k, v in w.items()
-                          if k in ("gw", "in", "out", "hits", "chip", "ep")}
+                          if k in ("gw", "in", "out", "hits", "chip", "ep",
+                                   "solver_status", "optimal")}
                          for w in weeks],
                "hit_verdict": verdict, "gems": gems[:20],
                "rationale": rationale, "planner": graded,
