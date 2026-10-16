@@ -3,7 +3,13 @@ entry_id: 3907632           # your FPL team id
 league_id: 88825            # FPL Aarhus Liga
 
 # --- how the gaffer thinks ---------------------------------------------------
-horizon: 5                  # gameweeks to plan ahead
+horizon: 5                  # gameweeks the TRANSFER plan looks ahead
+# How far the CHIP SWEEP looks, which is a different question and until
+# 16 Oct 2026 silently shared the number above. "The best Bench Boost week"
+# meant "the best of the next five" while the chip survives to the GW19
+# deadline — eight weeks it had never priced. Capped because a projection
+# this far out is weak; it is a ranking, not a forecast.
+chip_horizon_max: 13
 decay: 0.87                 # weight on each future gameweek (near-term certainty)
 hit_cost: 4                 # points per extra transfer
 hit_threshold: 6.0
@@ -269,3 +275,10 @@ midweek_haircut: 0.06     # minutes lost in a domestic midweek round
 
 # --- calibration -------------------------------------------------------------
 calibrate_to_solio: true  # scale local projections to match Solio where they overlap
+
+# How hard an opponent matchup may tilt a projection. Ships at 0.0: the
+# signal is measured and reported but inert, because six gameweeks gives a
+# team two or three goals conceded per position and that is not a rate. Turn
+# it up only once the ledger shows it helps — the mistake the `ceiling` model
+# made was being consumed before anyone checked it.
+matchup_weight: 0.0

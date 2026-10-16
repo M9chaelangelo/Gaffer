@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import yaml
 
-from . import (crowd, fetch, games, guards, imminent, league, projections, prices,
-               template,
+from . import (crowd, fetch, games, guards, imminent, league, matchup,
+               projections, prices, template,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
 from .learn import ledger
@@ -67,7 +67,14 @@ def main():
     # projections are built further out than the weekly plan needs. Everything
     # except the rebuild still works on `gws`: a five-week solve that suddenly
     # became a ten-week one would change every other recommendation on the page.
-    span = max(cfg["horizon"], cfg.get("wildcard_horizon", 8))
+    # Projections must also cover the chip window, which is longer than both
+    # the transfer horizon and the wildcard draft: a chip survives to the end
+    # of its half, and pricing a GW19 Bench Boost needs a GW19 projection.
+    # Capped, because a projection nineteen weeks out is not information.
+    _half_end = 19 if gw <= 19 else 38
+    _chip_span = min(max(0, _half_end - gw + 1),
+                     cfg.get("chip_horizon_max", 13))
+    span = max(cfg["horizon"], cfg.get("wildcard_horizon", 8), _chip_span)
     gws_long = [g for g in range(gw, gw + span)
                 if any(e["id"] == g for e in boot["events"])]
     ev = next(e for e in boot["events"] if e["id"] == gw)
@@ -347,7 +354,15 @@ def main():
     # found. The solver answers "what should I do"; this answers "does what I
     # intend to do work, and what does it cost me".
     solver_total = round(sum(w["ep"] for w in weeks), 2)
-    graded = planner.grade(cfg, proj, squad_ids, bank, ft, gws,
+    # The chip sweep looks across every week a chip can still be played,
+    # which is not the transfer horizon. A first-half chip dies at the GW19
+    # deadline and a second-half one at GW38, so the window is the rest of
+    # the current half, capped by what the projections actually cover.
+    half_end = planner.FIRST_HALF_LAST_GW if gw <= planner.FIRST_HALF_LAST_GW else 38
+    chip_gws = [g for g in gws_long if gw <= g <= half_end] or gws
+    print(f"  chip sweep window: GW{chip_gws[0]}-GW{chip_gws[-1]} "
+          f"({len(chip_gws)} weeks) against a {len(gws)}-week transfer horizon")
+    graded = planner.grade(cfg, proj, squad_ids, bank, ft, gws, chip_gws=chip_gws,
                            sell=sell, solver_total=solver_total)
     if graded["unresolved"]:
         print("  !! names in my_plan that could not be resolved: "
@@ -362,6 +377,20 @@ def main():
     # repo; it reads data.json. The server-rendered page is still written, as
     # report.html — it needs no JavaScript and is the thing that still works if
     # the app breaks or the browser is ancient.
+    # --- how the two sides match up --------------------------------------
+    # Reuses the live payloads the ledger already pulled: no extra calls.
+    try:
+        mu = matchup.build(boot, fx, live_by_gw,
+                           weight=cfg.get("matchup_weight", 0.0))
+        worst = sorted(mu["by_team"].items(),
+                       key=lambda kv: -max(kv[1]["index"].values()))[:3]
+        print(f"  matchup (weight {mu['weight']:.2f}): most exposed — " + ", ".join(
+            f"{t} to {max(r['index'], key=r['index'].get)} "
+            f"{max(r['index'].values()):.2f}" for t, r in worst))
+    except Exception as ex:                                 # noqa: BLE001
+        print(f"  (matchup unavailable: {ex})")
+        mu = None
+
     # --- the template, the ceiling, and the edge --------------------------
     # Winning a mini-league is a different problem from scoring points: what
     # moves you up is your score minus the scores around you. See template.py.
@@ -430,16 +459,32 @@ def main():
         n = ledger.record(led_dir, "fpl", gw, rows, {"chip": first.get("chip")})
         print(f"  ledger: recorded {n} predictions for GW{gw}")
 
+        live_by_gw = {}
         preds = ledger.latest_predictions(led_dir, "fpl")
         done = {r["gw"] for r in ledger.joined(led_dir, "fpl")}
         for g in sorted({k[1] for k in preds if k[1] < gw} - done):
             ids = {k[2] for k in preds if k[1] == g}
             live = fetch.live(g) or {}
+            live_by_gw[g] = live
             actual = {e["id"]: (e.get("stats") or {}).get("total_points", 0)
                       for e in live.get("elements", []) if e["id"] in ids}
             if actual:
                 ledger.settle(led_dir, "fpl", g, actual)
                 print(f"  ledger: settled GW{g} ({len(actual)} players)")
+
+        ledger.record_prices(led_dir, [
+            {"id": i, "name": p.get("name"), "price": p.get("price"),
+             "price_direction": (pf.get(i) or {}).get("direction"),
+             "net_transfers": (pf.get(i) or {}).get("net")}
+            for i, p in proj.items()])
+        ps = ledger.score_prices(led_dir, "fpl")
+        if ps.get("n"):
+            mx = ps["matrix"]
+            print(f"  price forecast: {ps['n']} scored, accuracy {ps['accuracy']:.0%} "
+                  f"(rise {mx['rise']['correct']}/{mx['rise']['predicted']}, "
+                  f"fall {mx['fall']['correct']}/{mx['fall']['predicted']})")
+        else:
+            print(f"  price forecast: {ps.get('note')}")
 
         sc = ledger.score(led_dir, "fpl")
         if sc.get("n"):
@@ -450,6 +495,7 @@ def main():
                       f"actual {w['xi_actual']}, bias {w['bias']:+.2f}")
     except Exception as e:                                  # noqa: BLE001
         print(f"  (ledger unavailable: {e})")
+        live_by_gw = {}
 
     # Who is due a return. One request per finished gameweek in the window,
     # and a failure here must not cost the solve — it is a diagnostic.
@@ -468,7 +514,7 @@ def main():
                          team_form=form_table, strengths=strengths,
                          ticker=ticker, imminent=due,
                          guards=bad, ledger=sc, crowd=pack,
-                         template=tmpl)
+                         template=tmpl, matchup=mu)
     webdata.write(data, cfg["out_dir"])
 
     out = os.path.join(cfg["out_dir"], "report.html")

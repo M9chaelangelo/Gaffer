@@ -506,13 +506,21 @@ def from_config(cfg, proj, gws):
 
 
 def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
-          solver_total=None):
+          solver_total=None, chip_gws=None):
     """The whole planner in one call: check it, price it, and suggest.
 
     `solver_total` is what the optimiser's own line is worth over the same
     horizon. The gap between that and your plan is the only number that
     settles an argument about a chip week.
+
+    `chip_gws` is the window the CHIP SWEEP looks across, which has no reason
+    to equal the transfer horizon and until now silently did. A five-week
+    solve meant "the best Bench Boost week" was really "the best of the next
+    five", while the chip survives to the GW19 deadline — eight candidate
+    weeks it had never priced. Defaults to `gws` so callers that do not care
+    behave exactly as before.
     """
+    chip_gws = list(chip_gws or gws)
     steps, missing = from_config(cfg, proj, gws)
     spent, unknown = chips_used(cfg)
     result = evaluate(steps, proj, squad_ids, bank, first_ft, gws, sell,
@@ -527,7 +535,8 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
         # and did not exist.
         if chip in spent:
             continue
-        ranked = sweep_chip(chip, steps, proj, squad_ids, bank, first_ft, gws, sell)
+        ranked = sweep_chip(chip, steps, proj, squad_ids, bank, first_ft,
+                            chip_gws, sell)
         if not ranked:
             continue
         current = next((g for g, s in steps.items() if s.get("chip") == chip), None)
@@ -535,7 +544,7 @@ def grade(cfg, proj, squad_ids, bank, first_ft, gws, sell=None,
         here = next((r["gain"] for r in ranked if r["gw"] == current), None)
         entry = {
             "name": CHIP_NAMES[chip],
-            "ranked": ranked[:6],
+            "ranked": ranked[:14],
             "current_gw": current,
             "best_gw": best["gw"],
             "best_gain": best["gain"],
