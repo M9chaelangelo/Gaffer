@@ -393,8 +393,20 @@ def main():
                                               ttl=7 * 24 * 3600)
             except Exception:                               # noqa: BLE001
                 continue
-        mu = matchup.build(boot, fx, live_recent,
+        # Previous seasons as the prior: thirty-eight games a side instead
+        # of six. Same archive the models train on; a promoted club has no
+        # history and falls back to the league mean.
+        hist = {}
+        try:
+            from . import data as _hist_data
+            hist = matchup.historical(
+                _hist_data.history(seasons=cfg.get("matchup_prior_seasons")))
+        except Exception as he:                             # noqa: BLE001
+            print(f"  (matchup prior unavailable, using league average: {he})")
+        mu = matchup.build(boot, fx, live_recent, prior=hist,
                            weight=cfg.get("matchup_weight", 0.0))
+        if hist:
+            print(f"  matchup prior: {len(hist)} clubs from previous seasons")
         worst = sorted(mu["by_team"].items(),
                        key=lambda kv: -max(kv[1]["index"].values()))[:3]
         print(f"  matchup (weight {mu['weight']:.2f}): most exposed — " + ", ".join(

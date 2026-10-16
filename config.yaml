@@ -285,3 +285,9 @@ matchup_weight: 0.0
 
 # How many finished gameweeks the opponent-matchup profile looks back over.
 matchup_weeks: 8
+
+# Seasons used as the prior for the opponent-matchup profile. Null means
+# every season the archive holds, decayed by half for each year further
+# back. Squads and managers turn over, so this is a starting guess, not a
+# verdict — and a promoted club has no history and falls back to the mean.
+matchup_prior_seasons: ["2024-25", "2025-26"]
