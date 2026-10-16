@@ -24,11 +24,12 @@ from __future__ import annotations
 
 import json
 import os
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 PREDICTIONS = "predictions.jsonl"
 OUTCOMES = "outcomes.jsonl"
+PRICES = "prices.jsonl"
 
 
 def _append(path, rows):
@@ -162,3 +163,73 @@ def score(dirpath, game=None, min_ep=0.0):
         "skill": round(1 - mae / naive, 3) if naive else None,
         "weeks": weeks,
     }
+
+
+# --- price forecasts ---------------------------------------------------------
+# The engine predicts tonight's price moves from net transfers, calibrated
+# against the players who actually rose. Until now it printed that forecast
+# and forgot it, so nobody could say whether it was any good — the same blind
+# spot the projection ledger was built to close.
+#
+# No extra fetch is needed to settle these. Each run records every player's
+# price alongside the forecast; the NEXT run's price is the answer to the
+# previous run's question, so the file scores itself.
+
+def record_prices(dirpath, players, game="fpl"):
+    """Snapshot every player's price and the forecast made against it."""
+    now = datetime.now(timezone.utc).isoformat()
+    rows = []
+    for p in players:
+        if p.get("price") is None:
+            continue
+        rows.append({"game": game, "at": now, "player_id": int(p["id"]),
+                     "name": p.get("name"), "price": round(float(p["price"]), 1),
+                     "direction": p.get("price_direction"),
+                     "net": p.get("net_transfers")})
+    return _append(os.path.join(dirpath, PRICES), rows)
+
+
+def score_prices(dirpath, game="fpl"):
+    """Was the forecast right? Scored against the next snapshot's price.
+
+    A forecast is only counted once a LATER snapshot exists for that player,
+    so the most recent run is never marked against itself.
+    """
+    rows = [r for r in _read(os.path.join(dirpath, PRICES))
+            if not game or r.get("game") == game]
+    by_player = defaultdict(list)
+    for r in rows:
+        by_player[r["player_id"]].append(r)
+
+    counts = defaultdict(lambda: Counter())
+    moves = []
+    for pid, rs in by_player.items():
+        rs.sort(key=lambda r: str(r.get("at")))
+        for a, b in zip(rs, rs[1:]):
+            d = round(b["price"] - a["price"], 1)
+            actual = "rise" if d > 0 else ("fall" if d < 0 else "hold")
+            said = a.get("direction") or "hold"
+            counts[said][actual] += 1
+            if actual != "hold":
+                moves.append({"name": a.get("name"), "said": said,
+                              "actual": actual, "delta": d,
+                              "net": a.get("net")})
+
+    total = sum(sum(c.values()) for c in counts.values())
+    if not total:
+        return {"n": 0, "note": "need two snapshots before a forecast can be scored"}
+    hits = sum(counts[k][k] for k in ("rise", "fall", "hold"))
+    out = {"n": total, "accuracy": round(hits / total, 3), "matrix": {},
+           "moves": moves[-40:]}
+    for said in ("rise", "fall", "hold"):
+        c = counts.get(said) or Counter()
+        n = sum(c.values())
+        out["matrix"][said] = {
+            "predicted": n,
+            "correct": c[said],
+            # Precision on the calls that matter: a "hold" that holds is easy
+            # and uninformative, a called rise that rises is the whole point.
+            "precision": round(c[said] / n, 3) if n else None,
+            "breakdown": dict(c),
+        }
+    return out
