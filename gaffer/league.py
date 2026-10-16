@@ -24,6 +24,7 @@ def _snapshot(league_id, entry_id, gw, rival_depth=10, pages=2):
     me = next((r for r in rows if r["entry"] == entry_id), None)
 
     all_own, pack_own, cap = Counter(), Counter(), Counter()
+    squads = {}
     my_ids = set()
     n_all = n_pack = 0
 

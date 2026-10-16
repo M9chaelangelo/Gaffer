@@ -237,3 +237,34 @@ def test_the_fixture_ticker_is_exported_with_string_keys():
 
 def test_no_ticker_is_an_empty_map_not_a_missing_key():
     assert build()["ticker"] == {}
+
+
+def test_league_snapshot_keeps_every_rival_squad():
+    """_snapshot referenced `squads` without ever creating it.
+
+    A NameError inside the solve step, which only a real run reaches — the
+    unit tests exercised template.build, not league._snapshot, so they
+    passed while the live run died. Build the dict here so the next rename
+    cannot do it again.
+    """
+    from unittest import mock
+
+    from gaffer import league
+
+    rows = [{"entry": 1, "rank": 1, "entry_name": "Top", "player_name": "A",
+             "total": 500},
+            {"entry": 2, "rank": 2, "entry_name": "Mine", "player_name": "B",
+             "total": 400}]
+    picks = {1: {"picks": [{"element": i, "is_captain": i == 3}
+                           for i in range(1, 16)]},
+             2: {"picks": [{"element": i, "is_captain": i == 4}
+                           for i in range(2, 17)]}}
+    with mock.patch.object(league.fetch, "league", return_value=rows), \
+         mock.patch.object(league.fetch, "picks", side_effect=lambda e, g: picks[e]), \
+         mock.patch.object(league.time, "sleep"):
+        snap = league._snapshot(1, 2, 7, rival_depth=1)
+
+    assert set(snap["squads"]) == {1, 2}
+    assert snap["squads"][1]["name"] == "Top"
+    assert snap["squads"][1]["captain"] == 3
+    assert len(snap["squads"][2]["picks"]) == 15
