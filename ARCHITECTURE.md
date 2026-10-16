@@ -77,3 +77,38 @@ The assistant's container is denied `fantasy.premierleague.com` and
 `gaming.uefa.com` by the environment's network policy. Actions runners are
 not. That single constraint decides the whole deployment: the solve runs in
 CI, commits its output, and the assistant reads the committed result.
+
+## The UCL side
+
+`gaffer/ucl/` is now a plan, not a silo. It had sat half-wired for weeks
+while the advice actually given came from a standalone script; the pieces
+each worked and nothing joined them, which is precisely the failure a test
+of the pieces cannot catch. `tests/test_ucl.py` ends with an end-to-end case
+for that reason.
+
+    fetch.py      UEFA's one working endpoint, read defensively
+    strength.py   team goal rates from the feed, when no book is reachable
+    project.py    correlated Monte Carlo over one matchday
+    plan.py       the MILP, and the armband
+    main.py       fetch -> project -> optimise -> report -> commit
+
+Three things differ from FPL in ways that change the answer, not just the
+arithmetic:
+
+**The armband moves.** There is no vice-captain; instead the captaincy may be
+moved during a matchday to a player who has not kicked off. So the captaincy
+is worth `E[max(s, E[f])]` where `s` is the Tuesday captain's realised score
+and `f` the best Wednesday fallback — never less than `max(E[s], E[f])`, and
+the gap is a free second swing with no FPL analogue. `plan.armband` computes
+it from the simulated samples and names both players.
+
+**Recoveries pay 1 per 3 with no threshold**, where FPL's defensive
+contribution is a cliff at 10. A holding midfielder is a floor here and a
+lottery ticket there.
+
+**Goal rates are modelled, not devigged.** The FPL side gets its rates from
+bookmaker odds. For UCL the runner usually cannot reach a book, so
+`strength.py` fits them from what the feed carries: goals so far, plus a
+squad-value prior whose exponent is *fitted* on this season's own scoring
+rather than asserted. Measured odds in `config/ucl.yaml` always win, and
+every fixture line in the report says which it used.

@@ -129,3 +129,32 @@ thrown away. Happened once on 10 Oct.
   `timing.breakeven()` says how big it would have to be to flip your decision.
 - `min_transfer_gain` (1.5) — the bar a transfer must clear to be suggested.
 - `solio_weight` (0.7) — how much to trust Solio over the local model.
+
+
+## UCL matchday
+
+    # on a runner, which is the only place UEFA is reachable
+    python -m gaffer.ucl.main --matchday 3
+
+Or dispatch the `ucl` workflow. It writes `docs/ucl.json` and
+`docs/ucl.txt` and commits both, plus a refreshed `gaffer/ucl/snapshot.json`
+so the next run works offline.
+
+Before every deadline, in `config/ucl.yaml`:
+
+- **`squad`** — confirm it against the live team. A squad one player wrong
+  produces a transfer plan wrong in two places. Names fold accents, full
+  stops and spacing, and anything unmatched is printed at the top of the
+  run rather than guessed at.
+- **`out`** — anyone suspended or injured, by name. UEFA's availability prose
+  has never once been ahead of a suspension, and a player left at a
+  one-in-ten chance of playing also carries a tenth of a haul, which is
+  enough to keep him in an eleven.
+- **`odds`** — devigged 1X2 per fixture when a book is reachable. These beat
+  the strength model, and the report says `[odds]` or `[model]` per line.
+- `free_transfers` is 2 a matchday and at most one rolls.
+
+Known gaps: the MILP picks the eleven against the plain captaincy and the
+armband is re-picked exactly afterwards, so the eleven itself is chosen one
+step short of optimal; and `MAX_ROLLED_TRANSFERS` is not enforced by the
+solver — set `free_transfers` by hand.

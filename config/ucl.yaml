@@ -1,0 +1,52 @@
+# UEFA Champions League Fantasy — the weekly control surface.
+#
+# Names are matched against UEFA's feed with accents, full stops and spacing
+# folded away, so "B.Fernandes", "B. Fernandes" and "Bruno Fernandes" all
+# land on the same row. A name that matches nothing, or matches more than one
+# player, is REPORTED rather than guessed at — read the "not matched" line at
+# the top of every run and fix the spelling here.
+
+matchday: 3
+
+# Read off the manager's MD2 side. Confirm against the live team before the
+# deadline: a squad that is one player wrong produces a transfer plan that is
+# wrong in two places.
+squad:
+  - Bredlow          # GK
+  - Suzuki           # GK
+  - N. Brown         # DEF
+  - Maguire          # DEF
+  - Hakimi           # DEF
+  - Mittelstadt      # DEF
+  - Altimira         # DEF
+  - Olise            # MID  — suspended for MD3, a guaranteed zero
+  - Yamal            # MID
+  - B. Fernandes     # MID
+  - Kvaratskhelia    # MID
+  - Zalazar          # MID  — injured
+  - Kane             # FWD
+  - Guirassy         # FWD
+  - Undav            # FWD
+
+bank: 0.0
+free_transfers: 2          # UCL gives two a matchday, and rolls at most one
+max_extra_transfers: 0     # each one beyond the free ones costs 4
+
+# Must stay in the squad whatever the solver thinks.
+locked: []
+# Must not be bought — a player you know is out but whose feed row is clean.
+banned: []
+
+# Known out, whatever UEFA's availability prose says. These are projected at
+# exactly zero, not at a long shot, so the solver will sell them. The feed
+# has never once been ahead of a suspension.
+out:
+  - Olise            # suspended for MD3
+  - Zalazar          # injured
+
+# Devigged 1X2, home-first, by any substring of the two clubs' names. When a
+# fixture is listed here these win; when it is not, the goal rates come from
+# the feed's own strength model and the run says "[model]" against that line.
+# Measured input — fill it in before the deadline when a book is reachable.
+odds: {}
+#  Arsenal v Atlético: [0.52, 0.25, 0.23]

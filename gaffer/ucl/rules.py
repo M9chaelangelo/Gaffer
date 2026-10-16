@@ -52,34 +52,10 @@ EXTRA_TRANSFER_COST = 4
 MAX_ROLLED_TRANSFERS = 1   # league phase only
 
 
-def score(pos, *, played=False, minutes=0, goals=0, goals_outside_box=0,
-          assists=0, clean_sheet=False, conceded=0, saves=0, recoveries=0,
-          yellow=0, red=0, own_goals=0, pen_saved=0, pen_missed=0,
-          pen_won=0, pen_conceded=0, motm=False):
-    """Points for one player in one match. The single source of truth."""
-    if not played:
-        return 0
-    p = APPEARANCE + (APPEARANCE_60 if minutes >= 60 else 0)
-    p += goals * GOAL[pos] + goals_outside_box * GOAL_OUTSIDE_BOX
-    p += assists * ASSIST
-    if clean_sheet and minutes >= 60:
-        p += CLEAN_SHEET[pos]
-    if pos in ("GK", "DEF"):
-        p -= conceded // CONCEDED_PER_POINT
-    p += saves // SAVES_PER_POINT
-    p += recoveries // RECOVERIES_PER_POINT
-    p += yellow * YELLOW + red * RED + own_goals * OWN_GOAL
-    p += pen_saved * PENALTY_SAVE + pen_missed * PENALTY_MISS
-    p += pen_won * PENALTY_WON + pen_conceded * PENALTY_CONCEDED
-    if motm:
-        p += PLAYER_OF_THE_MATCH
-    return p
-
-
 # --- plugged into the shared engine ------------------------------------------
-# Everything above is the scoring. This is what the rest of the engine needs
-# to know about the game, and it is the only place UCL differs from FPL as
-# far as the solver, the sweep and the simulator are concerned.
+# Everything above is the scoring constants. Below is what the rest of the
+# engine needs to know about the game, and it is the only place UCL differs
+# from FPL as far as the solver, the sweep and the simulator are concerned.
 from ..games import Game    # noqa: E402
 
 
