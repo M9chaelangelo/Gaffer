@@ -476,6 +476,13 @@ def main():
     # wrong — a spent chip ranked best on the page, a Bench Boost week
     # understated by 22 points, a squad pin three days out of date. These
     # assert what must be true of any answer before a human reads it.
+    st = (weeks[0].get("solver_status") if weeks else None)
+    if st and st != "Optimal":
+        print(f"  !! the solver stopped at '{st}', not a proven optimum — "
+              f"raise time_limit (now {cfg.get('time_limit', 240)}s) "
+              f"or lower pool_size ({cfg.get('pool_size', 130)})")
+    else:
+        print(f"  solver: {st or 'unknown'}")
     bad = guards.check(cfg, weeks, gw, planner.chips_used(cfg)[0])
     print(guards.render(bad))
     if any(v["fatal"] for v in bad):

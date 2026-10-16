@@ -83,3 +83,13 @@ def test_an_undated_pin_is_a_warning_because_nothing_can_check_it():
 
 def test_no_pin_no_complaint():
     assert guards.check_squad_pin({}, 7) == []
+
+
+def test_a_time_limited_solve_is_flagged_as_not_proven():
+    """pulp returns its status and the engine threw it away, so a plan that
+    ran out of seconds looked identical to one proved optimal. The GW7 solve
+    used 101 of its 110 seconds, so this is not hypothetical."""
+    assert guards.check_solver([{"solver_status": "Optimal"}]) == []
+    v = guards.check_solver([{"solver_status": "Not Solved"}])
+    assert v and v[0]["code"] == "solver-not-optimal" and not v[0]["fatal"]
+    assert guards.check_solver([{}]) == []      # unknown stays silent
