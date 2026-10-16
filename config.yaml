@@ -107,6 +107,12 @@ current_squad:
   - João Pedro    # 7.6  FWD  EVE (A)
 bank: 0.6
 
+# Which gameweek the pin above was taken for. The pin is right for exactly
+# one deadline and wrong from the next, and it has already gone stale once —
+# a GW7 solve drafted against a squad the manager had not owned for three
+# days. `guards.check_squad_pin` refuses a plan built on a stale pin.
+squad_pinned_for: 7
+
 # One free transfer into GW7; a second move costs 4. Declared because the
 # public API does not expose it.
 free_transfers: 1
