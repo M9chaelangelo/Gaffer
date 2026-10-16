@@ -1,0 +1,4 @@
+
+# The ledgers are append-only history. A merge that picks one side throws
+# away whichever run it did not pick, so union the lines instead.
+docs/ledger/*.jsonl merge=union
