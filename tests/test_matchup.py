@@ -207,3 +207,56 @@ def test_attack_index_ranks_scoring_sides_above_toothless_ones():
 
 def test_attack_index_is_none_before_any_match_is_played():
     assert matchup.attack_index([], [1, 2]) == {1: None, 2: None}
+
+
+# --- each position earns differently, so a matchup means something different
+
+STRONG = {2: 1.25}          # opponent with a strong attack
+WEAK = {3: 0.80}            # opponent with a weak attack
+LEAKY = {2: {"index": {"DEF": 1.25, "MID": 1.25, "FWD": 1.25}},
+         3: {"index": {"DEF": 0.80, "MID": 0.80, "FWD": 0.80}}}
+
+
+def test_a_keeper_and_a_forward_want_opposite_fixtures():
+    gk = matchup.multiplier(LEAKY, 2, "GKP", weight=1.0, attack=STRONG)
+    fw = matchup.multiplier(LEAKY, 2, "FWD", weight=1.0, attack=STRONG)
+    assert gk < 1.0 < fw, "the same opponent is bad for one and good for the other"
+
+
+def test_saves_soften_a_keeper_against_a_strong_attack():
+    """Pure inversion said 1/1.25 = 0.80. But a busy keeper against a
+    wasteful side collects saves, so the real penalty is much smaller."""
+    gk = matchup.multiplier(LEAKY, 2, "GKP", weight=1.0, attack=STRONG)
+    assert gk > 0.85, f"saves must offset the clean-sheet loss, got {gk}"
+    assert gk < 1.0, "but it is still a worse fixture on balance"
+
+
+def test_defcon_softens_a_defender_against_a_strong_attack():
+    """A side camped in its own half makes more clearances and blocks, so
+    a defender loses less than the clean-sheet component alone implies."""
+    comp = matchup.components(LEAKY, 2, "DEF", attack=STRONG)
+    assert comp["clean_sheet"] < 1.0 < comp["defcon"], "they pull opposite ways"
+    d = matchup.multiplier(LEAKY, 2, "DEF", weight=1.0, attack=STRONG)
+    assert d > comp["clean_sheet"], "the net is better than the clean sheet alone"
+
+
+def test_a_defender_also_gains_from_a_defence_that_leaks_to_defenders():
+    """Set-piece returns are a real second route, and the first version of
+    this ignored them for defenders entirely."""
+    leaky = matchup.multiplier(LEAKY, 3, "DEF", weight=1.0, attack=WEAK)
+    tight = matchup.multiplier({3: {"index": {"DEF": 0.80}}}, 3, "DEF",
+                               weight=1.0, attack=WEAK)
+    assert leaky == tight    # same inputs
+    more = matchup.multiplier({3: {"index": {"DEF": 1.25}}}, 3, "DEF",
+                              weight=1.0, attack=WEAK)
+    assert more > tight, "a defence that concedes to defenders is worth more"
+
+
+def test_weight_zero_is_still_exactly_neutral_for_every_position():
+    for pos in ("GKP", "DEF", "MID", "FWD"):
+        assert matchup.multiplier(LEAKY, 2, pos, weight=0.0, attack=STRONG) == 1.0
+
+
+def test_an_unknown_opponent_is_neutral_for_every_position():
+    for pos in ("GKP", "DEF", "MID", "FWD"):
+        assert matchup.multiplier({}, 99, pos, weight=1.0, attack={}) == 1.0

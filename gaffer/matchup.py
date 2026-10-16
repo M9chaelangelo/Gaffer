@@ -192,6 +192,56 @@ def attack_index(fixtures, teams, prior_games=PRIOR_GAMES):
     return out
 
 
+# --- what each position actually earns, and so what a matchup means to it ---
+#
+# A single "is this a good fixture" number is wrong, because the four
+# positions are paid for different things and some of those pull in
+# OPPOSITE directions against the same opponent.
+#
+#   clean_sheet  worth 4 to a keeper or defender, 1 to a midfielder. Rises
+#                as the opponent's attack weakens.
+#   saves        1 per 3, keepers only. Rises as the opponent's attack
+#                STRENGTHENS — a busy keeper against a wasteful side is the
+#                one fixture profile the inverse-attack view gets wrong.
+#   conceded     -1 per 2, keepers and defenders. Worsens with their attack.
+#   attacking    goals and assists. Rises with what that defence concedes to
+#                this position specifically — the set-piece centre-back and
+#                the counter-attacked full-back are different fixtures.
+#   defcon       2 points at a threshold, defenders and midfielders. Rises
+#                as the opponent STRENGTHENS, because a side camped in its
+#                own half makes more clearances, blocks and interceptions.
+#
+# So a defender facing a strong attack gains on defcon and loses on the
+# clean sheet, and the net depends on which share is larger. Hard-coding one
+# direction per position, as the first version did, loses that entirely.
+#
+# Shares are the rough fraction of a position's points that each component
+# supplies, from the scoring rules and the squad's own measured DNA. They
+# sum to about 1 before the appearance floor, which no matchup can move.
+COMPONENT_SHARES = {
+    "GKP": {"clean_sheet": 0.42, "saves": 0.28, "conceded": -0.18},
+    "DEF": {"clean_sheet": 0.40, "attacking": 0.22, "defcon": 0.10,
+            "conceded": -0.14},
+    "MID": {"attacking": 0.56, "defcon": 0.14, "clean_sheet": 0.06},
+    "FWD": {"attacking": 0.74},
+}
+
+
+def components(profile, opponent_id, pos, attack=None):
+    """Each component's index against this opponent, 1.0 meaning average."""
+    ai = (attack or {}).get(opponent_id)
+    conc = ((profile or {}).get(opponent_id) or {}).get("index", {}).get(pos)
+    out = {}
+    if ai:
+        out["clean_sheet"] = 1.0 / ai      # weak attack opposite -> clean sheet
+        out["saves"] = ai                  # strong attack opposite -> saves
+        out["conceded"] = ai               # and goals against, share is negative
+        out["defcon"] = ai                 # more defending -> more actions
+    if conc:
+        out["attacking"] = conc
+    return out
+
+
 def multiplier(profile, opponent_id, pos, weight=0.0, attack=None):
     """How much to tilt a projection for this opponent, at `weight`.
 
@@ -200,19 +250,12 @@ def multiplier(profile, opponent_id, pos, weight=0.0, attack=None):
     """
     if not weight:
         return 1.0
-    if pos in ("GKP", "DEF"):
-        # A keeper's week is decided by the opponent's attack, not by what
-        # their defence concedes to keepers. Inverted: a weak attack
-        # opposite is worth MORE to him, so the multiplier rises as the
-        # opponent's attack index falls.
-        ai = (attack or {}).get(opponent_id)
-        if ai is None:
-            return 1.0
-        return max(CLAMP[0], min(CLAMP[1], 1.0 + weight * (1.0 / ai - 1.0)))
-    idx = ((profile or {}).get(opponent_id) or {}).get("index", {}).get(pos)
-    if idx is None:          # unmeasured position, or unknown opponent
+    comp = components(profile, opponent_id, pos, attack)
+    if not comp:
         return 1.0
-    return max(CLAMP[0], min(CLAMP[1], 1.0 + weight * (idx - 1.0)))
+    shares = COMPONENT_SHARES.get(pos, {})
+    tilt = sum(sh * (comp[k] - 1.0) for k, sh in shares.items() if k in comp)
+    return max(CLAMP[0], min(CLAMP[1], 1.0 + weight * tilt))
 
 
 def build(boot, fixtures, live_by_gw, weight=0.0, prior=None):
