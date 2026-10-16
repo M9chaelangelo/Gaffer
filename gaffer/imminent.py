@@ -99,7 +99,11 @@ def build(boot, live_by_gw, proj=None, window=WINDOW, top=20):
             "news": e.get("news") or "",
         }
         if proj and e["id"] in proj:
-            row["ep_next"] = proj[e["id"]].get("ep_next")
+            # Same trap as crowd.py: proj rows key `ep` by gameweek and have
+            # no `ep_next`, so this column printed 0.00 for every player.
+            ep = (proj[e["id"]] or {}).get("ep")
+            row["ep_next"] = (round(ep[min(ep)], 2) if isinstance(ep, dict) and ep
+                              else proj[e["id"]].get("ep_next"))
         rows.append(row)
 
     def rank(kind):
