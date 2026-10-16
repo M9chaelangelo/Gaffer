@@ -122,7 +122,14 @@ pool_size: 130         # candidate players in the solve; higher is slower
 # feasible-but-unproven plan without saying so. The run reports the solver's
 # status now, and a non-optimal stop raises a guard, so this can be tuned on
 # evidence rather than guessed at.
-time_limit: 200        # seconds the solver may spend
+# Raised 200 -> 420 on 16 Oct 2026. The churn penalty couples every
+# player's transfer-in to his transfer-out across the whole horizon, which
+# made the eight-week solve materially harder: at 200s it hit the time
+# limit on every week and returned an unproven plan worth 6.8 points LESS
+# than the proven one it replaced — and moved a chip week while doing it.
+# A proven 595 beats an unproven 588. Actions runs are cheap; unproven
+# plans are not.
+time_limit: 420        # seconds the solver may spend
 hit_time_limit: 60     # shorter budget for the "is a hit worth it" re-solve
 elite_sample: 100      # how many of the world's top managers to sample
 
