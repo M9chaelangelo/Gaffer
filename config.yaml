@@ -31,8 +31,18 @@ bench_weights: [0.16, 0.11, 0.06, 0.02]
 
 # --- mini-league strategy ----------------------------------------------------
 # 0.0 = pure expected points. 1.0 = pure differential-chasing.
-# Raise it when you are behind and need variance; lower it when you are ahead.
-rivalry: 0.35
+#
+# Raised 0.35 -> 0.60 on 16 Oct 2026. The manager's stated goal is the
+# mini-league, not overall rank, and he is LAST of 42 with the leader 132
+# points clear. Playing the field's own template from behind cannot close a
+# gap that size: matching everyone's score keeps the gap exactly where it is.
+# Closing it needs players the teams above him do not own, which is what
+# this dial buys — at the cost of a wider spread in both directions, which
+# is the correct trade when the downside is finishing last either way.
+#
+# Lower it back toward 0.35 once the gap is inside roughly 40 points, and to
+# 0.2 if he leads. See template.py for the arithmetic this feeds.
+rivalry: 0.60
 
 # --- value of waiting --------------------------------------------------------
 # What perfect information is worth on a 15-player rebuild, in points.
@@ -40,7 +50,12 @@ rivalry: 0.35
 # is mostly noise; lower it if you trust two gameweeks of data.
 info_value: 22.0
 break_bonus: 4.0          # extra credit for a gameweek right after an international break
-rival_depth: 10             # how many teams above you count as "the pack"
+# How many teams above you count as "the pack" whose ownership you are
+# measured against. Raised 10 -> 20 with rivalry: from last place in a
+# 42-team league the ten immediately above are not the teams that decide the
+# season, and a pack that narrow makes almost everyone's picks look like a
+# differential.
+rival_depth: 20
 
 # --- projections -------------------------------------------------------------
 solio_url: https://fpl.solioanalytics.com/api/data/latest.json

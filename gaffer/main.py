@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import yaml
 
 from . import (crowd, fetch, games, guards, imminent, league, projections, prices,
+               template,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
 from .learn import ledger
@@ -361,6 +362,22 @@ def main():
     # repo; it reads data.json. The server-rendered page is still written, as
     # report.html — it needs no JavaScript and is the thing that still works if
     # the app breaks or the browser is ancient.
+    # --- the template, the ceiling, and the edge --------------------------
+    # Winning a mini-league is a different problem from scoring points: what
+    # moves you up is your score minus the scores around you. See template.py.
+    try:
+        tmpl = template.build(squad_ids, lg, proj, gws, bank=bank, sell=sell,
+                              elite_own=elite_own)
+        print(f"  template: your XI {tmpl['mine']['total']}, league template "
+              f"{(tmpl['template_league'] or {}).get('total')}, ceiling "
+              f"{(tmpl['ceiling'] or {}).get('total')}")
+        e = tmpl["edge_vs_pack"]
+        print(f"    edge vs the pack above you: {e['edge']:+.1f} "
+              f"(gain {e['gain']}, holes {e['cost']})")
+    except Exception as ex:                                 # noqa: BLE001
+        print(f"  (template unavailable: {ex})")
+        tmpl = None
+
     # --- what everyone else is doing --------------------------------------
     # Three of these four signals were already being computed and thrown
     # away: the elite's captains, their chips, and the whole game's chip
@@ -450,7 +467,8 @@ def main():
                          clean_sheets=cs_table, wildcard=wc_draft,
                          team_form=form_table, strengths=strengths,
                          ticker=ticker, imminent=due,
-                         guards=bad, ledger=sc, crowd=pack)
+                         guards=bad, ledger=sc, crowd=pack,
+                         template=tmpl)
     webdata.write(data, cfg["out_dir"])
 
     out = os.path.join(cfg["out_dir"], "report.html")
