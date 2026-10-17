@@ -11,22 +11,25 @@ matchday: 3
 # Read off the manager's MD2 side. Confirm against the live team before the
 # deadline: a squad that is one player wrong produces a transfer plan that is
 # wrong in two places.
+# Read off the live team on 17 Oct 2026, not reconstructed. The earlier list
+# had Maguire, whom the manager does not own, so the plan it produced "bought"
+# Bartra — a player already in the squad — and the budget was 9.1m short.
 squad:
-  - Bredlow          # GK
-  - Suzuki           # GK
+  - Z. Suzuki        # GK
+  - F. Bredlow       # GK
+  - Sergi Altimira   # DEF
   - N. Brown         # DEF
-  - Maguire          # DEF
-  - Hakimi           # DEF
-  - Mittelstadt      # DEF
-  - Altimira         # DEF
-  - Olise            # MID  — suspended for MD3, a guaranteed zero
-  - Yamal            # MID
-  - B. Fernandes     # MID
-  - Kvaratskhelia    # MID
-  - Zalazar          # MID  — injured
-  - H. Kane          # FWD  — "Kane" alone also matches N. Kane (LASK)
-  - Guirassy         # FWD
-  - Undav            # FWD
+  - M. Bartra        # DEF
+  - A. Hakimi        # DEF
+  - M. Mittelstadt   # DEF
+  - R. Zalazar       # MID
+  - M. Olise         # MID  — suspended for MD3
+  - Bruno Fernandes  # MID
+  - L. Yamal         # MID
+  - K. Kvaratskhelia # MID
+  - H. Kane          # FWD  ("Kane" alone also matches N. Kane of LASK)
+  - S. Guirassy      # FWD
+  - D. Undav         # FWD
 
 bank: 0.0
 free_transfers: 2          # UCL gives two a matchday, and rolls at most one
