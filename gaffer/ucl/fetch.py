@@ -25,8 +25,14 @@ from datetime import datetime
 from .rules import POS
 
 BASE = "https://gaming.uefa.com/en/uclfantasy/services/api"
-UA = {"User-Agent": "Mozilla/5.0 (fpl-gaffer)",
-      "Accept": "application/json, text/plain, */*"}
+UA = {"User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                     "AppleWebKit/537.36 (KHTML, like Gecko) "
+                     "Chrome/140.0.0.0 Safari/537.36"),
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "en-GB,en;q=0.9",
+      "Referer": "https://gaming.uefa.com/en/uclfantasy/",
+      "Origin": "https://gaming.uefa.com",
+      "Connection": "close"}
 
 # Fields this module was written against. If UEFA drops one, say so loudly
 # rather than silently projecting zeros.
@@ -34,16 +40,33 @@ REQUIRED = ("id", "pDName", "skill", "value", "tName", "tId", "selPer",
             "totPts", "minsPlyd", "gS", "assist", "bR", "upcomingMatchesList")
 
 
-def _get(url, tries=3, timeout=120):
+def _get(url, tries=4, timeout=45):
+    """Fetch and parse, or raise with every attempt's actual error.
+
+    The first version re-raised only the last exception, and the caller
+    turned that into "no live feed". Six minutes of timeouts became one
+    sentence that did not say what had happened — the diagnosis was
+    collected and discarded, which is the same bug as printing a profile
+    you then throw away.
+
+    Shorter timeouts and one more try: a two-megabyte body that has not
+    begun after forty-five seconds is not slow, it is blocked, and four
+    quick attempts learn more than three long ones.
+    """
+    errors = []
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA)
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.loads(r.read())      # read in full — a cap here
-        except Exception:                        # silently truncates the body
-            if i == tries - 1:                   # and corrupts the parse
-                raise
-            time.sleep(2 * (i + 1))
+                body = r.read()                  # read in full — a cap here
+            return json.loads(body)              # silently truncates the body
+        except Exception as e:                   # and corrupts the parse
+            detail = getattr(e, "code", None) or getattr(e, "reason", None)
+            errors.append(f"attempt {i + 1}: {e.__class__.__name__}"
+                          + (f" ({detail})" if detail else ""))
+            if i < tries - 1:
+                time.sleep(2 * (i + 1))
+    raise RuntimeError(f"GET {url} failed — " + "; ".join(errors))
 
 
 def raw_players(gameday):

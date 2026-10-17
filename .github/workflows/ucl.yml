@@ -39,6 +39,23 @@ jobs:
       - run: pip install -r requirements.txt
       - name: tests
         run: python -m pytest tests/test_ucl.py -q
+      - name: can this runner reach UEFA at all
+        # Separates "our client is wrong" from "the host is unreachable".
+        # Near matchday two the feed timed out repeatedly and we had no way
+        # to tell which it was. Never fails the job.
+        continue-on-error: true
+        run: |
+          set +e
+          curl -sS -o /tmp/uefa.json -D /tmp/uefa.head --max-time 60 \
+            -H 'User-Agent: Mozilla/5.0' \
+            -H 'Referer: https://gaming.uefa.com/en/uclfantasy/' \
+            -w 'http %{http_code}  dns %{time_namelookup}s  connect %{time_connect}s  ttfb %{time_starttransfer}s  total %{time_total}s  bytes %{size_download}\n' \
+            "https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=3&language=en"
+          echo "curl exit $?"
+          head -c 400 /tmp/uefa.head 2>/dev/null
+          head -c 300 /tmp/uefa.json 2>/dev/null
+          echo
+
       - name: plan the matchday
         env:
           MD: ${{ github.event.inputs.matchday }}

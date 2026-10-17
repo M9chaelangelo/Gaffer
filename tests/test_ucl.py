@@ -327,3 +327,27 @@ def test_a_report_of_a_whole_plan_prints_without_raising(tmp_path, monkeypatch, 
     # "transfers in" is how a reader ends up taking fifteen hits.
     assert "draft of the best fifteen" in text
     assert "OUT " not in text
+
+
+def test_a_failed_fetch_names_every_attempt_rather_than_the_last(monkeypatch):
+    """Six minutes of timeouts arrived as one sentence naming no cause.
+
+    The first version re-raised only the last exception and the caller
+    turned it into "no live feed", so the diagnosis was collected and
+    discarded — the same shape as a print that deletes its own data.
+    """
+    import urllib.error
+
+    from gaffer.ucl import fetch
+
+    monkeypatch.setattr(fetch.time, "sleep", lambda _s: None)
+
+    def boom(*_a, **_k):
+        raise urllib.error.URLError("timed out")
+
+    monkeypatch.setattr(fetch.urllib.request, "urlopen", boom)
+    with pytest.raises(RuntimeError) as e:
+        fetch._get("https://example.invalid/feed")
+    msg = str(e.value)
+    assert "attempt 1" in msg and "attempt 4" in msg
+    assert "URLError" in msg and "timed out" in msg

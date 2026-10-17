@@ -50,7 +50,11 @@ def load_snapshot(matchday, offline):
     else:
         problems = []
     if not os.path.exists(SNAPSHOT):
-        raise SystemExit("no live feed and no committed snapshot at " + SNAPSHOT)
+        # Say WHY. The first version printed only this path, so six minutes
+        # of timeouts arrived as one sentence that named no cause.
+        raise SystemExit(
+            f"no live feed and no committed snapshot at {SNAPSHOT}\n  "
+            + "\n  ".join(problems or ["(no reason was recorded)"]))
     with open(SNAPSHOT) as f:
         snap = json.load(f)
     return (snap["players"], snap["fixtures"],
