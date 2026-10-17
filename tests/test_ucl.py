@@ -488,3 +488,18 @@ def test_a_failed_solve_prints_no_eleven(capsys):
     text = capsys.readouterr().out
     assert "No plan" in text
     assert "starting eleven" not in text
+
+
+def test_the_published_json_keeps_your_own_players_however_badly_they_project():
+    """The file was 1.2MB and 59,000 lines, the whole pool pretty printed
+    beside a snapshot that already held it. Trimming it must not drop a
+    squad member: a row missing from the file reads as a player who does
+    not exist, and showing why he is benched is the point of the row.
+    """
+    rows = [dict(_player(i, f"P{i}", "MID", "Alpha", 5.0), ep=float(i))
+            for i in range(400)]
+    kept = uclmain._worth_keeping(rows, owned_ids=["0", "1"])
+    ids = {r["id"] for r in kept}
+    assert len(kept) == uclmain.KEEP_PROJECTED + 2
+    assert {"0", "1"} <= ids                      # the worst two, both owned
+    assert "399" in ids                           # and the best in the pool

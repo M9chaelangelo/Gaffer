@@ -149,8 +149,30 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         "fixtures": fxrates,
         "plan": result,
         "armband": band,
-        "projected": sorted(projected, key=lambda r: -r["ep"]),
+        "projected": _worth_keeping(projected, owned["ids"]),
     }
+
+
+# How much of the pool to carry in docs/ucl.json. The whole of it, pretty
+# printed, was 1.2MB and 59,000 lines rewritten on every run, which makes a
+# diff unreadable and duplicates the snapshot that sits beside it.
+KEEP_PROJECTED = 150
+
+
+def _worth_keeping(projected, owned_ids):
+    """The top of the pool by expected points, plus everyone you own.
+
+    Your own players must survive the cut however badly they project —
+    a squad member missing from the file reads as a player who does not
+    exist, and the whole point of the row is to show why he is benched.
+    """
+    ranked = sorted(projected, key=lambda r: -r["ep"])
+    keep = {r["id"]: r for r in ranked[:KEEP_PROJECTED]}
+    own = set(map(str, owned_ids))
+    for r in ranked:
+        if r["id"] in own:
+            keep.setdefault(r["id"], r)
+    return sorted(keep.values(), key=lambda r: -r["ep"])
 
 
 def resolve(rows, names):
@@ -357,7 +379,7 @@ def main(argv=None):
     report(out, write=TEXT)
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     with open(a.out, "w") as f:
-        json.dump(out, f, ensure_ascii=False, indent=1)
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
     print(f"wrote {a.out} and {TEXT}")
     return 0
 
