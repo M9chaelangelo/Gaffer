@@ -93,3 +93,63 @@ def test_a_time_limited_solve_is_flagged_as_not_proven():
     v = guards.check_solver([{"solver_status": "Not Solved"}])
     assert v and v[0]["code"] == "solver-not-optimal" and not v[0]["fatal"]
     assert guards.check_solver([{}]) == []      # unknown stays silent
+
+
+def _sweep_bb(best_gw, best_gain, ranked):
+    return {"bb": {"name": "Bench Boost", "valued": True,
+                   "best_gw": best_gw, "best_gain": best_gain,
+                   "ranked": [{"gw": g, "gain": v} for g, v in ranked]}}
+
+
+def test_a_chip_the_sweep_ranks_ninth_is_not_played_silently():
+    """The solver put the Bench Boost in GW7 on 17 Oct 2026. Its own sweep
+    ranked GW7 ninth of thirteen. The objective discounts future weeks at
+    0.87, so a chip five weeks out enters at half value and "now" wins
+    almost every time — right for transfers, wrong for a one-shot chip.
+    """
+    from gaffer import guards
+
+    sweep = _sweep_bb(17, 16.36, [(7, 14.09), (8, 15.02), (12, 15.36),
+                                  (16, 15.77), (17, 16.36)])
+    bad = guards.check_chip_timing([{"gw": 7, "chip": "Bench Boost"}], sweep)
+    assert len(bad) == 1
+    m = bad[0]["message"]
+    assert "GW17" in m and "16.36" in m and "14.09" in m
+    assert "5 of 5" in m or "of 5" in m
+
+
+def test_a_chip_played_in_the_sweeps_best_week_is_not_flagged():
+    from gaffer import guards
+
+    sweep = _sweep_bb(17, 16.36, [(7, 14.09), (17, 16.36)])
+    assert guards.check_chip_timing([{"gw": 17, "chip": "Bench Boost"}], sweep) == []
+
+
+def test_a_chip_within_tolerance_of_the_best_week_is_not_flagged():
+    # Chasing a quarter of a point across ten gameweeks of projection is
+    # noise, not a finding.
+    from gaffer import guards
+
+    sweep = _sweep_bb(8, 15.02, [(7, 14.80), (8, 15.02)])
+    assert guards.check_chip_timing([{"gw": 7, "chip": "Bench Boost"}], sweep) == []
+
+
+def test_an_unpriced_chip_is_not_second_guessed():
+    """Wildcard and Free Hit are worth the squad they buy, and the sweep
+    holds the squad fixed, so it reports them `valued: false`. Guessing
+    from a number the sweep itself refuses to stand behind is worse than
+    staying quiet."""
+    from gaffer import guards
+
+    sweep = {"fh": {"name": "Free Hit", "valued": False,
+                    "best_gw": None, "best_gain": None,
+                    "ranked": [{"gw": 7, "gain": None}]}}
+    assert guards.check_chip_timing([{"gw": 7, "chip": "Free Hit"}], sweep) == []
+
+
+def test_no_chip_and_no_sweep_are_both_quiet():
+    from gaffer import guards
+
+    assert guards.check_chip_timing([{"gw": 7, "chip": None}], _sweep_bb(17, 16.4, [(7, 14.1)])) == []
+    assert guards.check_chip_timing([{"gw": 7, "chip": "Bench Boost"}], None) == []
+    assert guards.check_chip_timing([], None) == []

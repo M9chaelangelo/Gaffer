@@ -483,7 +483,8 @@ def main():
               f"or lower pool_size ({cfg.get('pool_size', 130)})")
     else:
         print(f"  solver: {st or 'unknown'}")
-    bad = guards.check(cfg, weeks, gw, planner.chips_used(cfg)[0])
+    bad = guards.check(cfg, weeks, gw, planner.chips_used(cfg)[0],
+                       sweep=graded.get("chips"))
     print(guards.render(bad))
     if any(v["fatal"] for v in bad):
         print("  !! the plan above is NOT trustworthy — fix the fatals first")

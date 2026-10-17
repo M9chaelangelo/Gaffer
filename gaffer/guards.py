@@ -161,7 +161,58 @@ def check_solver(weeks):
     return []
 
 
-def check(cfg, weeks, solved_gw, chips_used=()):
+def check_chip_timing(weeks, sweep, tolerance=0.5):
+    """The solver and the sweep must agree on when to play a chip.
+
+    They systematically do not, and the solver is the one that is wrong.
+    The objective discounts each future gameweek by `decay` (0.87), which
+    is right for transfers — you genuinely do not know your squad in five
+    weeks — and wrong for a one-shot chip, where the same asset is being
+    compared against itself in different weeks. A Bench Boost worth 15.4
+    in GW12 enters the objective at 15.4 x 0.87^5 = 7.7, so "now" wins
+    almost automatically.
+
+    On 17 Oct 2026 that put the Bench Boost in GW7, which the sweep ranked
+    NINTH of the thirteen weeks it could still be played in. Left alone,
+    this engine recommends every chip the first week it is legal, forever.
+
+    Until the objective separates chip placement from discounted transfer
+    value, the sweep is the authority and this guard is how the
+    disagreement reaches a human instead of being silently resolved in
+    favour of today.
+    """
+    out = []
+    for w in (weeks or [])[:1]:
+        chip = w.get("chip")
+        if not chip:
+            continue
+        key = {"bench boost": "bb", "triple captain": "tc",
+               "wildcard": "wc", "free hit": "fh"}.get(str(chip).lower())
+        entry = (sweep or {}).get(key) or {}
+        if not entry.get("valued"):
+            continue            # Wildcard and Free Hit are not priced here
+        ranked = entry.get("ranked") or []
+        here = next((r.get("gain") for r in ranked
+                     if r.get("gw") == w.get("gw")), None)
+        best_gw, best = entry.get("best_gw"), entry.get("best_gain")
+        if here is None or best is None or best_gw == w.get("gw"):
+            continue
+        if best - here > tolerance:
+            place = next((i + 1 for i, r in enumerate(
+                sorted(ranked, key=lambda r: -(r.get("gain") or 0)))
+                if r.get("gw") == w.get("gw")), None)
+            out.append(_v(
+                "chip-timing",
+                f"the solver plays the {chip} in GW{w.get('gw')} "
+                f"({here:.2f}) but the sweep ranks that "
+                + (f"{place} of {len(ranked)}" if place else "lower")
+                + f" — GW{best_gw} is worth {best:.2f}, "
+                f"{best - here:.2f} more. The solver discounts future "
+                f"weeks and so always prefers now; trust the sweep."))
+    return out
+
+
+def check(cfg, weeks, solved_gw, chips_used=(), sweep=None):
     """Every invariant, in one call."""
     out = []
     out += check_chips(weeks, chips_used)
@@ -169,6 +220,7 @@ def check(cfg, weeks, solved_gw, chips_used=()):
     out += check_lineup(weeks)
     out += check_squad_pin(cfg, solved_gw)
     out += check_solver(weeks)
+    out += check_chip_timing(weeks, sweep)
     return out
 
 
