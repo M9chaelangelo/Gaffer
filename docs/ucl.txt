@@ -1,0 +1,54 @@
+
+UCL matchday 3  —  live data, 2026-10-17T00:22Z
+
+!! configured squad members not matched in the feed: B. Fernandes, Kane
+
+fixtures (kick-off order — the armband can move between days)
+  2026-10-20T18:45                   Sabah 1.49 - 1.23 B. Dortmund            [model]
+  2026-10-20T18:45              Fenerbahçe 1.49 - 1.23 Slavia Praha           [model]
+  2026-10-20T21:00                Man City 1.49 - 1.23 AEK Athens             [model]
+  2026-10-20T21:00                   Paris 1.49 - 1.23 Barcelona              [model]
+  2026-10-20T21:00               Stuttgart 1.49 - 1.23 Atleti                 [model]
+  2026-10-20T21:00               Liverpool 1.49 - 1.23 Villarreal             [model]
+  2026-10-20T21:00                  Napoli 1.49 - 1.23 Bodø/Glimt             [model]
+  2026-10-20T21:00                    Roma 1.49 - 1.23 S. Bratislava          [model]
+  2026-10-20T21:00                   Porto 1.49 - 1.23 PSV                    [model]
+  2026-10-21T18:45                    Como 1.49 - 1.23 Man Utd                [model]
+  2026-10-21T18:45                   Lille 1.49 - 1.23 Galatasaray            [model]
+  2026-10-21T21:00             Real Madrid 1.49 - 1.23 Leipzig                [model]
+  2026-10-21T21:00          Bayern München 1.49 - 1.23 Arsenal                [model]
+  2026-10-21T21:00                   Inter 1.49 - 1.23 Shakhtar               [model]
+  2026-10-21T21:00             Aston Villa 1.49 - 1.23 Viking                 [model]
+  2026-10-21T21:00             Sporting CP 1.49 - 1.23 LASK                   [model]
+  2026-10-21T21:00             Club Brugge 1.49 - 1.23 Lens                   [model]
+  2026-10-21T21:00              Real Betis 1.49 - 1.23 Feyenoord              [model]
+
+solver: Infeasible (NOT PROVED OPTIMAL)   spend 90.0 of 81.0
+
+transfers
+
+starting eleven
+  GK   Z. Suzuki          Aston Villa         4.0  ep  3.23  blank 16.0%  haul  1.1%
+  DEF  M. Mittelstädt     Stuttgart           4.5  ep  3.79  blank 15.7%  haul  3.7%
+  DEF  Sergi Altimira     Sporting CP         4.0  ep  3.64  blank 15.7%  haul  2.6%
+  DEF  N. Brown           Bayern München      4.0  ep  3.58  blank 16.1%  haul  3.2%
+  DEF  A. Hakimi          Paris               6.0  ep  3.44  blank 16.0%  haul  2.9%
+  DEF  H. Maguire         Man Utd             5.0  ep  3.42  blank 16.0%  haul  3.0%
+  MID  L. Yamal           Barcelona          10.1  ep  5.79  blank 15.5%  haul 21.3%
+  MID  K. Kvaratskhelia   Paris              10.0  ep  3.96  blank 15.6%  haul  7.0%
+  FWD  D. Undav           Stuttgart           7.1  ep  5.05  blank 15.7%  haul 16.1%
+  FWD  Carlos Espí        Real Madrid         5.0  ep  4.87  blank 15.5%  haul 15.7%
+  FWD  S. Guirassy        B. Dortmund         8.6  ep  4.69  blank 15.6%  haul 14.6%
+bench (auto-sub order)
+  1. MID  M. Balamotis       AEK Athens         ep  3.30
+  2. GK   F. Bredlow         Stuttgart          ep  2.27
+  3. MID  M. Olise           Bayern München     ep  0.00
+  4. MID  R. Zalazar         Sporting CP        ep  0.00
+
+armband — captain, and the move you keep in hand
+  L. Yamal           2026-10-20  plain  5.79  with the move  7.32  (+1.52)  switch to Carlos Espí if he blanks
+  D. Undav           2026-10-20  plain  5.05  with the move  6.84  (+1.79)  switch to Carlos Espí if he blanks
+  S. Guirassy        2026-10-20  plain  4.69  with the move  6.57  (+1.88)  switch to Carlos Espí if he blanks
+  K. Kvaratskhelia   2026-10-20  plain  3.96  with the move  5.80  (+1.84)  switch to Carlos Espí if he blanks
+  M. Mittelstädt     2026-10-20  plain  3.79  with the move  5.73  (+1.94)  switch to Carlos Espí if he blanks
+  A. Hakimi          2026-10-20  plain  3.44  with the move  5.60  (+2.15)  switch to Carlos Espí if he blanks
