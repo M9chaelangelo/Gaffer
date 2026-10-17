@@ -20,7 +20,9 @@ legacy/             fplbrain and the TypeScript engine, absorbed, not running
 
 ## The three layers
 
-**Measure.** `fetch` (FPL), `ucl/fetch` (UEFA), Solio, bookmaker odds,
+**Measure.** `fetch` (FPL), `ucl/fetch` (UEFA), Solio, `odds` (bookmaker
+prices: football-data.co.uk for closing lines on played matches, the-odds-api
+for forward ones),
 `vaastav/Fantasy-Premier-League` for 84,577 historical player-gameweeks.
 Everything downstream is only as good as this, so what is measured and what
 is estimated is marked at every boundary.
@@ -106,9 +108,21 @@ it from the simulated samples and names both players.
 contribution is a cliff at 10. A holding midfielder is a floor here and a
 lottery ticket there.
 
-**Goal rates are modelled, not devigged.** The FPL side gets its rates from
-bookmaker odds. For UCL the runner usually cannot reach a book, so
-`strength.py` fits them from what the feed carries: goals so far, plus a
-squad-value prior whose exponent is *fitted* on this season's own scoring
-rather than asserted. Measured odds in `config/ucl.yaml` always win, and
-every fixture line in the report says which it used.
+**Neither side runs on bookmaker odds, and this file used to claim the FPL
+one did.** It does not. FPL goal rates come from `defence.team_xgc` —
+FPL's own `expected_goals_conceded_per_90`, minutes-weighted and shrunk
+toward the league mean over six games of prior — scaled by opponent attack
+and a 0.88 home factor, then blended with Solio at `solio_weight` and
+rescaled by `calibrate_to_solio`. Solio is another model, not the market.
+UCL rates come from `ucl/strength.py`: goals so far plus a squad-value
+prior whose exponent is *fitted* on this season's own scoring.
+
+So both competitions run on models, and until `odds.py` landed there was no
+way to find out whether those models beat the market. There now is:
+`odds.history` reads free closing 1X2 for played matches and
+`odds.score_against_market` scores our goal rates and the market's over the
+same fixtures, in Brier and log loss. Measured on 60 Premier League matches
+on 17 Oct 2026, the market's own baseline is **Brier 0.6307, log loss
+1.0471** — the number to beat. `odds.forward` supplies live prices for
+either competition under a key; without one it returns nothing and a reason,
+and the solve falls back to the model.
