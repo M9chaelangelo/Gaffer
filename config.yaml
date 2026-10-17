@@ -61,7 +61,7 @@ bench_weights: [0.16, 0.11, 0.06, 0.02]
 #
 # Lower it back toward 0.35 once the gap is inside roughly 40 points, and to
 # 0.2 if he leads. See template.py for the arithmetic this feeds.
-rivalry: 0.60
+rivalry: 0.0
 
 # --- value of waiting --------------------------------------------------------
 # What perfect information is worth on a 15-player rebuild, in points.
