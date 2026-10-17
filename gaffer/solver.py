@@ -82,14 +82,42 @@ def status_name(status):
     return STATUS.get(status, str(status))
 
 
-def solve(model, time_limit):
+def solve(model, time_limit, gap=None):
     """Solve `model` quietly under a time limit; return the status name.
 
     The verdict comes off the return value, not off the model. PuLP 3 returns
     the status integer and also leaves it on `model.status`; PuLP 4 returns a
     stats object and removed the attribute. The return value is the one thing
     both versions give you.
+
+    `gap` is CBC's relative MIP gap. Pass 0 to make it prove optimality.
+    Different CBC builds carry different default gaps, so a model that
+    returns "Optimal" on one machine returns "Gap Limit" on another with the
+    same answer — which is indistinguishable, to a caller comparing the word,
+    from a solve that failed. Small models should simply ask for the proof.
     """
-    result = model.solve(backend()(msg=0, timeLimit=time_limit))
+    kw = {} if gap is None else {"gapRel": gap}
+    result = model.solve(backend()(msg=0, timeLimit=time_limit, **kw))
     status = getattr(result, "status", result)
     return status_name(status)
+
+
+def proven(status, gap=None):
+    """Did the solver finish, or did it merely stop?
+
+    This is the distinction that matters to a caller, and the status word
+    alone does not carry it. CBC reports "Gap Limit" when the remaining gap
+    meets the tolerance it was given — which, when that tolerance is zero,
+    is a proof of optimality and not a shortfall. Different CBC builds reach
+    that state on different models, so the same solve came back "Optimal"
+    locally and "Gap Limit" on a runner with the same answer.
+
+    "Time Limit" is the one that genuinely means the answer may be poor. It
+    cost this project a whole gameweek plan once: a churn penalty pushed
+    every week onto the limit, scored 6.8 points below the proven plan, and
+    moved the Bench Boost. So the word is kept for the reader and the
+    judgement is made here, once.
+    """
+    if status == "Optimal":
+        return True
+    return gap == 0 and status == "Gap Limit"

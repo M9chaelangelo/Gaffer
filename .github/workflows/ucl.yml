@@ -1,0 +1,96 @@
+name: ucl
+# The UCL plan runs here because the assistant's own container is denied
+# gaming.uefa.com by the environment's network policy. Same arrangement as
+# the FPL solve: run where there is network, commit the answer, read it from
+# a git pull.
+on:
+  schedule:
+    # League-phase matchdays are Tuesday and Wednesday, with the deadline an
+    # hour before the first kick-off. Monday and Tuesday mornings give a plan
+    # in hand and a second look once the team news lands.
+    - cron: "0 6 * * 1"
+    - cron: "0 6 * * 2"
+  workflow_dispatch:
+    inputs:
+      matchday:
+        description: "Matchday to plan (blank = the one in config/ucl.yaml)"
+        required: false
+        default: ""
+      sims:
+        description: "Monte Carlo draws"
+        required: false
+        default: "60000"
+  push:
+    # GitHub only registers workflow_dispatch once a file is on the default
+    # branch, and a plan that exists to inform a deadline cannot wait for a
+    # merge. Paths-scoped so an unrelated commit does not fetch UEFA.
+    #
+    # The publish step below commits gaffer/ucl/snapshot.json, which these
+    # paths match — the loop is prevented only because a push made with the
+    # default GITHUB_TOKEN does not trigger workflows. Switch this job to a
+    # PAT and it will fetch UEFA forever; exclude the snapshot from the
+    # paths first.
+    branches: [claude/ucl-engine]
+    paths: ['gaffer/ucl/**', 'config/ucl.yaml', '.github/workflows/ucl.yml']
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: tests
+        run: python -m pytest tests/test_ucl.py -q
+      - name: confirm UEFA still answers an honest client
+        # Measured here on 17 Oct 2026, same URL, same second: curl's own
+        # headers got 200 in 0.79s with two megabytes; Chrome's User-Agent
+        # reset the HTTP/2 stream and hung for 45 seconds over HTTP/1.1.
+        # The edge fingerprints the mismatch. This keeps that fact visible
+        # in the log, so the day it stops being true we see it in one line
+        # instead of in four timeouts. Never fails the job.
+        continue-on-error: true
+        run: |
+          set +e
+          FEED='https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=3&language=en'
+          printf '%-14s ' 'honest:'
+          curl -sS -o /dev/null --http1.1 --max-time 45 \
+            -w 'http %{http_code} ttfb %{time_starttransfer}s bytes %{size_download}\n' "$FEED"
+          printf '%-14s ' 'pretending:'
+          curl -sS -o /dev/null --http1.1 --max-time 20 \
+            -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36' \
+            -w 'http %{http_code} ttfb %{time_starttransfer}s bytes %{size_download}\n' "$FEED"
+          echo "(a timeout on the second line is the expected result)"
+
+      - name: plan the matchday
+        env:
+          MD: ${{ github.event.inputs.matchday }}
+          SIMS: ${{ github.event.inputs.sims }}
+        run: |
+          # The matchday lives in config so a scheduled run needs no input;
+          # a dispatch may override it.
+          if [ -z "$MD" ]; then
+            MD=$(python -c "import yaml;print(yaml.safe_load(open('config/ucl.yaml'))['matchday'])")
+          fi
+          python -m gaffer.ucl.main --matchday "$MD" --sims "${SIMS:-60000}"
+      - name: publish
+        # Only from the default branch. A push made with the default token
+        # does not trigger workflows, so every plan committed onto a feature
+        # branch moved the pull request's head to a commit with no checks —
+        # the branch could never go green, however good the code was. On a
+        # branch the run still fetches, solves and prints; it just does not
+        # commit.
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          git config user.name gaffer
+          git config user.email gaffer@users.noreply.github.com
+          # -A over the directories: `git add` on a path that does not exist
+          # is fatal under `bash -e`, and a step that failed earlier would
+          # then take the whole job down and hide its own error.
+          git add -A docs gaffer/ucl
+          git diff --staged --quiet || git commit -m "ucl: matchday plan $(date -u +%F)"
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME" || true
+          git push origin HEAD:"$GITHUB_REF_NAME"
