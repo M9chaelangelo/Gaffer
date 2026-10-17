@@ -39,21 +39,36 @@ jobs:
       - run: pip install -r requirements.txt
       - name: tests
         run: python -m pytest tests/test_ucl.py -q
-      - name: can this runner reach UEFA at all
-        # Separates "our client is wrong" from "the host is unreachable".
-        # Near matchday two the feed timed out repeatedly and we had no way
-        # to tell which it was. Never fails the job.
+      - name: how does UEFA answer this runner
+        # The first live run died in four timeouts. A curl showed DNS and
+        # TLS completing in 39ms and then the edge resetting the HTTP/2
+        # stream — an active rejection, not slowness. urllib speaks HTTP/1.1
+        # and hangs where curl gets an honest reset, which is why it read as
+        # a timeout. This step tries the variants that distinguish a bot
+        # wall from a protocol problem, and never fails the job.
         continue-on-error: true
         run: |
           set +e
-          curl -sS -o /tmp/uefa.json -D /tmp/uefa.head --max-time 60 \
-            -H 'User-Agent: Mozilla/5.0' \
-            -H 'Referer: https://gaming.uefa.com/en/uclfantasy/' \
-            -w 'http %{http_code}  dns %{time_namelookup}s  connect %{time_connect}s  ttfb %{time_starttransfer}s  total %{time_total}s  bytes %{size_download}\n' \
-            "https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=3&language=en"
-          echo "curl exit $?"
-          head -c 400 /tmp/uefa.head 2>/dev/null
-          head -c 300 /tmp/uefa.json 2>/dev/null
+          UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+          FEED='https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=3&language=en'
+          try () {
+            name="$1"; shift
+            out=$(curl -sS -o /tmp/body -D /tmp/head --max-time 45 \
+                  -w 'http %{http_code} ttfb %{time_starttransfer}s total %{time_total}s bytes %{size_download}' \
+                  "$@" 2>&1)
+            printf '%-26s %s\n' "$name" "$out"
+          }
+          try "h2 + browser UA"   -H "User-Agent: $UA" -H 'Referer: https://gaming.uefa.com/en/uclfantasy/' "$FEED"
+          try "h1.1 + browser UA" --http1.1 -H "User-Agent: $UA" -H 'Referer: https://gaming.uefa.com/en/uclfantasy/' "$FEED"
+          try "h1.1 + compressed" --http1.1 --compressed -H "User-Agent: $UA" "$FEED"
+          try "h1.1 + no headers" --http1.1 "$FEED"
+          try "the site itself"   --http1.1 -H "User-Agent: $UA" 'https://gaming.uefa.com/en/uclfantasy/'
+          try "uefa.com root"     --http1.1 -H "User-Agent: $UA" 'https://www.uefa.com/'
+          echo "--- response headers from the last successful transfer ---"
+          head -c 600 /tmp/head 2>/dev/null
+          echo
+          echo "--- first bytes of the last body ---"
+          head -c 300 /tmp/body 2>/dev/null
           echo
 
       - name: plan the matchday
