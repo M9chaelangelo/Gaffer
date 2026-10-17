@@ -24,6 +24,12 @@ on:
     # GitHub only registers workflow_dispatch once a file is on the default
     # branch, and a plan that exists to inform a deadline cannot wait for a
     # merge. Paths-scoped so an unrelated commit does not fetch UEFA.
+    #
+    # The publish step below commits gaffer/ucl/snapshot.json, which these
+    # paths match — the loop is prevented only because a push made with the
+    # default GITHUB_TOKEN does not trigger workflows. Switch this job to a
+    # PAT and it will fetch UEFA forever; exclude the snapshot from the
+    # paths first.
     branches: [claude/ucl-engine]
     paths: ['gaffer/ucl/**', 'config/ucl.yaml', '.github/workflows/ucl.yml']
 jobs:

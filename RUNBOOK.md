@@ -154,7 +154,20 @@ Before every deadline, in `config/ucl.yaml`:
   the strength model, and the report says `[odds]` or `[model]` per line.
 - `free_transfers` is 2 a matchday and at most one rolls.
 
-Known gaps: the MILP picks the eleven against the plain captaincy and the
-armband is re-picked exactly afterwards, so the eleven itself is chosen one
-step short of optimal; and `MAX_ROLLED_TRANSFERS` is not enforced by the
-solver — set `free_transfers` by hand.
+Known gaps:
+
+- **The horizon is one matchday.** The FPL side plans eight gameweeks; this
+  plans the next one. It shows: with Olise suspended and Zalazar injured,
+  the solver leaves both on the bench at zero rather than selling them,
+  because a benched player costs nothing *this* matchday. It is right about
+  MD3 and wrong about the league phase — 13.7m of dead squad value carries
+  into MD4 and MD5. Until the horizon is extended, decide by hand whether a
+  transfer is buying this matchday or the next three.
+- The MILP picks the eleven against the plain captaincy and the armband is
+  re-picked exactly afterwards, so the eleven is chosen one step short of
+  optimal.
+- `MAX_ROLLED_TRANSFERS` is not enforced by the solver — set
+  `free_transfers` by hand.
+- Goal rates are a model, not odds, and three of eighteen fixtures sit
+  exactly on the `MAX_LAMBDA` ceiling. Treat a pick whose value comes from a
+  clamped fixture as the model's opinion rather than the market's.
