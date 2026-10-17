@@ -143,3 +143,47 @@ half, and needs no belief in regression at all. Ranking on debt alone is how
    silently moved the armband off Haaland onto a 0% owned player projecting
    1.3 points lower, while the report called it "highest projection" — which
    was false. Leverage is a decision to make deliberately when behind.
+
+---
+
+## 17 October 2026 — three findings from one deadline morning
+
+**6. A written learning that does not change the code is not a safeguard.**
+Point 5 above recorded, in writing, that `rivalry: 0.35` had silently moved
+the armband off Haaland and that the report called the result "highest
+projection" when it was not. The dial was then raised to **0.60**, and on
+GW7 morning it captained Semenyo at 6.19 while Haaland sat in the same
+eleven at 9.14:
+
+    Haaland  9.14 x (1 + 0.60 x (1 - 0.93)) = 9.53
+    Semenyo  6.19 x (1 + 0.60 x (1 - 0.02)) = 9.81
+
+It cascaded: the solver bought Semenyo partly *because* it would then
+captain him, which flipped the transfer and left a 75%-fit Schade on the
+bench in a Bench Boost week, where there are no auto-subs. Turning the
+weight off was worth **+5.2 projected points** and cleared both guard
+warnings. `rivalry` is now `0.0` and the arithmetic is settled: for a
+straight swap, and for captaincy, ownership cancels exactly — `Δedge =
+Δpoints`. Differentials buy **variance**, not expected points, and a
+multiplier on EP cannot represent variance. The instrument for that is a
+league-position simulator optimising P(first), not a fudge factor.
+
+**7. Decay belongs to transfers, not to chips.** The objective discounts
+each future gameweek by 0.87. For transfers that is honest — you do not
+know your squad in five weeks. For a one-shot chip it is wrong, because
+the same asset is being compared against itself across weeks: a Bench
+Boost worth 15.36 in GW12 enters the objective at 7.7. So the solver put
+the Bench Boost in GW7, which its own sweep ranked **ninth of thirteen**
+(14.09 against GW17's 16.36, and GW8's 15.02). Left alone this engine
+recommends every chip the first week it is legal, forever. Until the
+objective separates the two, **the sweep is the authority on chip timing
+and the solver is not** — `guards.check_chip_timing` now says so out loud
+whenever they disagree by more than half a point.
+
+**8. "91% accurate" was a base rate, not a skill.** The price forecast
+reports accuracy 91% — and catches **3 of 417 rises and 9 of 325 falls**.
+Under 3% recall: the 91% is just how often nothing moves. A nightly job
+was running on it and reporting its own uselessness in a number nobody
+read. Accuracy on an imbalanced class is not evidence; recall and the
+confusion matrix are. The ledger is what exposed this, which is the one
+good part of the story.
