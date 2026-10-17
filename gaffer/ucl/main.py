@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import unicodedata
 from datetime import datetime, timezone
@@ -57,7 +58,10 @@ def load_snapshot(matchday, offline):
             + "\n  ".join(problems or ["(no reason was recorded)"]))
     with open(SNAPSHOT) as f:
         snap = json.load(f)
-    return (snap["players"], snap["fixtures"],
+    # Repair a snapshot written before matches-played was derived, so an
+    # older file does not quietly reproduce the flat-prior bug.
+    rows = fetch._attach_matches(snap["players"])
+    return (rows, snap["fixtures"],
             problems + list(snap.get("problems") or []), "snapshot")
 
 
@@ -108,6 +112,20 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
     squad_names = cfg.get("squad") or []
     owned = resolve(projected, squad_names)
     missing = [s for s in squad_names if s not in owned["named"]]
+    if missing:
+        # A budget is the squad's own value plus the bank. Two unmatched
+        # names took 9.1m out of it and the solver was asked to buy fifteen
+        # players for thirteen players' money: Infeasible, and it still
+        # printed an eleven. Planning against a squad we cannot read is
+        # worse than not planning.
+        raise SystemExit(
+            "cannot plan: these squad members in config/ucl.yaml do not "
+            "match exactly one player in UEFA's feed.\n"
+            + "\n".join(
+                f"  {n!r} -> " + (", ".join(owned["near"].get(n) or [])
+                                  or "nothing like it in the feed")
+                for n in missing)
+            + "\n\nUse one of the spellings above, or the player's feed id.")
 
     result = plan.optimise(
         projected,
@@ -137,13 +155,30 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
 
 def resolve(rows, names):
     """Match configured squad names to feed ids, reporting what did not match."""
-    ids, named = [], []
+    ids, named, near = [], [], {}
     for name in names:
         hit = _match(rows, name)
         if hit:
             ids.append(hit["id"])
             named.append(name)
-    return {"ids": ids, "named": named}
+        else:
+            near[name] = candidates(rows, name)
+    return {"ids": ids, "named": named, "near": near}
+
+
+def candidates(rows, name, limit=4):
+    """Feed names a configured name nearly matched, to fix the config with.
+
+    "Kane" matched two players and was correctly refused; "B. Fernandes"
+    matched none because the feed writes him "Bruno Fernandes". Saying so
+    is the difference between a one-word edit and a hunt.
+    """
+    key = _norm(_surname(name)) or _norm(name)
+    hits = [r for r in rows
+            if key and (key in _norm(r["name"]) or key in _norm(r["full_name"]))]
+    hits.sort(key=lambda r: -r["price"])
+    return [f"{r['name']} ({r['team']}, {r['pos']}, {r['price']:.1f})"
+            for r in hits[:limit]]
 
 
 def owned_ids_of(rows, names):
@@ -162,8 +197,28 @@ def _norm(s):
     return "".join(c for c in s if c.isalnum())
 
 
+def _parts(name):
+    """("b", "fernandes") for "B. Fernandes"; ("bruno", "fernandes") for the
+    written-out form. The last word is the surname either way."""
+    words = [w for w in re.split(r"[\s.]+", str(name).strip()) if w]
+    if not words:
+        return "", ""
+    return _norm(words[0]) if len(words) > 1 else "", _norm(words[-1])
+
+
+def _surname(name):
+    words = [w for w in re.split(r"[\s.]+", str(name).strip()) if w]
+    return words[-1] if words else ""
+
+
 def _match(rows, name):
-    """A feed row for a configured name. Id, then whole name, then substring."""
+    """A feed row for a configured name.
+
+    Id, then the whole name, then an initial and a surname, then a plain
+    substring. The initial step exists because UEFA writes "H. Kane" and
+    "Bruno Fernandes" in the same column: a config saying "B. Fernandes"
+    matched nothing, and a config saying "Kane" matched two men.
+    """
     key = _norm(name)
     for r in rows:
         if r["id"] == str(name).strip():
@@ -171,10 +226,31 @@ def _match(rows, name):
     for r in rows:
         if _norm(r["name"]) == key or _norm(r["full_name"]) == key:
             return r
+
+    first, last = _parts(name)
+    if last:
+        hits = []
+        for r in rows:
+            rf, rl = _parts(r["name"])
+            ff, fl = _parts(r["full_name"])
+            for cf, cl in ((rf, rl), (ff, fl)):
+                if cl != last or not cl:
+                    continue
+                # "B." matches "Bruno" and "Bruno" matches "B.", but
+                # "Bruno" must never match "Martim".
+                if not first or not cf or cf.startswith(first) or first.startswith(cf):
+                    hits.append(r)
+                    break
+        hits = list({r["id"]: r for r in hits}.values())
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            # Ambiguous is not a match. Picking the dearest "Silva" is how a
+            # plan quietly becomes a plan for somebody else's player.
+            return None
+
     hits = [r for r in rows
             if key and (key in _norm(r["name"]) or key in _norm(r["full_name"]))]
-    # An ambiguous surname is not a match. Picking the dearest "Silva" is how
-    # a plan quietly becomes a plan for somebody else's player.
     return hits[0] if len(hits) == 1 else None
 
 
@@ -213,6 +289,19 @@ def report(out, write=None):
     proof = "proved optimal" if p.get("optimal") else "NOT PROVED OPTIMAL"
     w(f"\nsolver: {p['status']} ({proof})   "
       f"spend {p['spend']:.1f} of {p['budget']:.1f}")
+    if not p.get("optimal"):
+        # After a failed solve the variables hold whatever CBC left behind.
+        # The first live run printed an eleven from an Infeasible model, with
+        # a spend of 90.0 against a budget of 81.0, and it read exactly like
+        # advice. Nothing below is a plan, so none of it gets printed.
+        w("\nNo plan. The solver did not finish, so the numbers it left "
+          "behind are not an eleven\nand must not be read as one. "
+          "Fix the cause above and run again.")
+        if write:
+            os.makedirs(os.path.dirname(write) or ".", exist_ok=True)
+            with open(write, "w") as fh:
+                fh.write("\n".join(lines))
+        return "\n".join(lines)
     if p.get("draft"):
         w("\nno squad configured — this is a draft of the best fifteen, "
           "not a transfer plan")

@@ -397,3 +397,94 @@ def test_the_header_set_that_worked_is_recorded(monkeypatch):
     assert fetch._get("https://example.invalid/feed") == {"ok": True}
     assert tried[0] == "curl/8.5.0"
     assert fetch.LAST_HEADERS == "(default)"
+
+
+# --- what the first live run got wrong ---------------------------------------
+
+def test_matches_played_comes_from_minutes_not_from_teamplayed():
+    """UEFA's `teamPlayed` means "played in THIS gameday".
+
+    In a feed pulled before the matchday it is 0 for all 1,171 players, so
+    reading it as matches-so-far told the strength model that nobody in
+    Europe had kicked a ball. Every one of the eighteen fixtures came out
+    at the same 1.49 against 1.23 — Bayern and Sabah alike.
+    """
+    from gaffer.ucl import fetch
+
+    rows = [_player(1, "A", "MID", "Alpha", 7.0, minutes=180, team_played=0),
+            _player(2, "B", "DEF", "Alpha", 5.0, minutes=74, team_played=0),
+            _player(3, "C", "FWD", "Beta", 8.0, minutes=0, team_played=0)]
+    fetch._attach_matches(rows)
+    assert rows[0]["matches"] == 2 and rows[1]["matches"] == 2
+    assert rows[2]["matches"] == 0
+
+
+def test_a_flat_league_is_not_the_answer_when_nobody_has_a_teamplayed():
+    rows = _pool()
+    for r in rows:
+        r["team_played"] = 0            # exactly what the live feed sends
+    from gaffer.ucl import fetch
+    fetch._attach_matches(rows)
+    fx, _, _ = project.fixture_rates(FIXTURES, rows)
+    rates = {round(f["lh"], 3) for f in fx} | {round(f["la"], 3) for f in fx}
+    assert len(rates) > 1, "every fixture got the same goal rate"
+
+
+def test_no_player_takes_more_than_a_third_of_his_sides_goals():
+    """Barkley had two goals in 106 minutes and the model made him the best
+    player in Europe at 14.1 points, ahead of Kane.
+
+    Three errors compounded: a prior worth two games left 1.70 goals per 90
+    barely shrunk, the share was taken against a league-wide 1.4 and then
+    applied to a side expected to score 3.25, and the cap allowed one man
+    three fifths of his team's goals.
+    """
+    assert project.MAX_GOAL_SHARE <= 0.35
+    assert project.MAX_ASSIST_SHARE <= 0.30
+    assert project.PRIOR_MINUTES >= 360, "two goals in a cameo is not a rate"
+
+    hot = _player(1, "Cameo", "MID", "Alpha", 5.5, minutes=106,
+                  goals=2, assists=1, goals90=1.70, assists90=0.85)
+    g90, _a, _r = project.rates(hot)
+    assert g90 < 0.45, f"a 106-minute sample survived shrinkage as {g90:.2f}"
+
+
+def test_a_share_is_taken_against_the_players_own_club_rate():
+    rate = {"Alpha": {"attack_goals": 2.6}, "Beta": {"attack_goals": 0.4}}
+    base = project.team_baselines(rate, 1.35)
+    assert base["Alpha"] == pytest.approx(2.6)
+    assert base["Beta"] == project.MIN_TEAM_GOALS      # floored, not zero
+
+
+def test_an_unreadable_squad_stops_the_plan_and_names_the_near_misses(
+        tmp_path, monkeypatch):
+    """Two unmatched names took 9.1m out of the budget and the solver was
+    asked to buy fifteen players for thirteen players' money. It returned
+    Infeasible and the report printed an eleven anyway.
+    """
+    import json
+
+    pool = _pool()
+    snap = tmp_path / "snapshot.json"
+    snap.write_text(json.dumps({"matchday": 3, "fixtures": FIXTURES,
+                                "players": pool, "problems": []}))
+    monkeypatch.setattr(uclmain, "SNAPSHOT", str(snap))
+    with pytest.raises(SystemExit) as e:
+        uclmain.run(3, {"squad": [pool[0]["name"], "Nobody At All"]},
+                    offline=True, n=800, time_limit=30)
+    msg = str(e.value)
+    assert "Nobody At All" in msg
+    assert "cannot plan" in msg
+
+
+def test_a_failed_solve_prints_no_eleven(capsys):
+    out = {"matchday": 3, "generated": "2026-10-20T00:00:00", "source": "snapshot",
+           "problems": [], "missing_from_squad": [], "unmatched_out": [],
+           "fixtures": [], "armband": [],
+           "plan": {"status": "Infeasible", "optimal": False, "draft": False,
+                    "spend": 90.0, "budget": 81.0, "xi": [], "bench": [],
+                    "squad": [], "in": [], "out": [], "hits": 0}}
+    uclmain.report(out)
+    text = capsys.readouterr().out
+    assert "No plan" in text
+    assert "starting eleven" not in text

@@ -38,9 +38,21 @@ PRIOR90 = {   # goals, assists, recoveries per 90
     "MID": (0.12, 0.14, 5.5),
     "FWD": (0.35, 0.12, 2.2),
 }
-PRIOR_MINUTES = 180.0          # observation reaches half weight at two games
+# How much of a player's own record to believe. At 180 minutes — half
+# weight after two games — Barkley's two goals in 106 minutes survived
+# shrinkage as 0.69 goals a game and the model projected him at 14 points,
+# ahead of Kane. Goals are a rare count; two of them are not a rate. 450
+# puts half weight at five full matches, which is still generous.
+PRIOR_MINUTES = 450.0
 TYPICAL_PRICE = {"GK": 5.0, "DEF": 5.5, "MID": 7.0, "FWD": 8.0}
-TYPICAL_TEAM_GOALS = 1.4       # the denominator a player's share is taken of
+TYPICAL_TEAM_GOALS = 1.4       # fallback when a club's own rate is unknown
+MIN_TEAM_GOALS = 0.8           # no club's baseline is lower than this
+
+# A player's share of his side's goals. The cap was 0.6, which let one man
+# take three fifths of a team expected to score three times — nobody in
+# football does that. Haaland takes about a third of Manchester City's.
+MAX_GOAL_SHARE = 0.35
+MAX_ASSIST_SHARE = 0.30
 
 # UEFA writes availability as prose, not a flag — and the prose covers two
 # very different states that the first version of this collapsed into one.
@@ -116,11 +128,26 @@ def start_prob(p):
         return DOUBT_START
     t = (p.get("trained") or "").lower()
     base = 0.85 if "contention" in t else 0.70
-    if p["team_played"] and p["minutes"] >= 60 * p["team_played"] * 0.7:
+    played = int(p.get("matches") or p.get("team_played") or 0)
+    if played and p["minutes"] >= 60 * played * 0.7:
         base = min(base + 0.08, 0.93)
-    elif p["team_played"] and p["minutes"] == 0:
+    elif played and p["minutes"] == 0:
         base = max(base - 0.35, 0.10)
     return base
+
+
+def team_baselines(rate, mu):
+    """Each club's own goals-per-game, the denominator for a player's share.
+
+    Taking the share against a league-wide 1.4 was the second half of the
+    Barkley bug: a Villa player accumulated his record while Villa scored
+    at Villa's rate, so dividing by someone else's rate and then
+    multiplying by Villa's expected goals counts the same strength twice.
+    """
+    out = {}
+    for name, t in (rate or {}).items():
+        out[name] = max(float(t.get("attack_goals") or mu), MIN_TEAM_GOALS)
+    return out
 
 
 def fixture_rates(fixtures, players, odds=None):
@@ -146,7 +173,8 @@ def simulate(players, fixtures, odds=None, n=N, seed=SEED):
     that is a real and common state, not an error.
     """
     rng = np.random.default_rng(seed)
-    fx, _rate, _mu = fixture_rates(fixtures, players, odds)
+    fx, rate, mu = fixture_rates(fixtures, players, odds)
+    baseline = team_baselines(rate, mu)
 
     draws, by_team = {}, {}
     for f in fx:
@@ -169,8 +197,9 @@ def simulate(players, fixtures, odds=None, n=N, seed=SEED):
         full = played & (rng.random(n) < FULL_GIVEN_START)
         mins = np.where(full, 1.0, np.where(played, PART_MINUTES, 0.0))
 
-        gshare = float(np.clip(g90 / TYPICAL_TEAM_GOALS, 0, 0.6))
-        ashare = float(np.clip(a90 / TYPICAL_TEAM_GOALS, 0, 0.6))
+        own = baseline.get(p["team"], TYPICAL_TEAM_GOALS)
+        gshare = float(np.clip(g90 / own, 0, MAX_GOAL_SHARE))
+        ashare = float(np.clip(a90 / own, 0, MAX_ASSIST_SHARE))
 
         pts = played.astype(float) + full.astype(float)
         mygoals = rng.binomial(scored, gshare) * played

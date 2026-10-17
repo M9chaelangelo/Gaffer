@@ -156,7 +156,28 @@ def players(gameday=None, rows=None):
             "status": (r.get("pStatus") or "").strip(),
             "fixtures": _fixtures_of(r),
         })
-    return out
+    return _attach_matches(out)
+
+
+def _attach_matches(rows):
+    """How many matches each club has played, derived from minutes.
+
+    UEFA's `teamPlayed` means "played in THIS gameday", so in a feed pulled
+    before the matchday it is 0 for all 1,171 players. Reading it as matches
+    so far told the strength model that nobody in Europe had kicked a ball,
+    and every fixture came out at the same flat prior — 1.49 against 1.23,
+    thirty-six teams, no difference between Bayern and Sabah.
+
+    Minutes are cumulative, so the longest any of a club's players has been
+    on the pitch, in nineties, is how many matches that club has played.
+    """
+    longest = {}
+    for p in rows:
+        longest[p["team"]] = max(longest.get(p["team"], 0.0), p["minutes"])
+    for p in rows:
+        mins = longest.get(p["team"], 0.0)
+        p["matches"] = int(round(mins / 90.0)) if mins else 0
+    return rows
 
 
 def _fixtures_of(r):

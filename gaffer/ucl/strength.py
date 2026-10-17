@@ -25,9 +25,14 @@ import math
 import numpy as np
 from scipy.optimize import minimize
 
-# A team has played twice by matchday three. Weighting the observation at
-# half needs a prior worth the same as two games.
-PRIOR_GAMES = 2.0
+# A team has played twice by matchday three, and two Poisson draws are not
+# a rate. At PRIOR_GAMES = 2 the observation carried half the weight and
+# six of eighteen fixtures came out at 3.6 to 4.0 expected goals, which is
+# not a Champions League scoreline. Six keeps two matches at a quarter —
+# standard shrinkage for a count this sparse — and should fall as the
+# league phase goes on. Judgement, not measurement: the ledger is what will
+# settle it.
+PRIOR_GAMES = 6.0
 
 # Home advantage in the league phase, as a multiplier on the home side's goal
 # rate (and its reciprocal away). This one is an assumption, not a fit: the
@@ -37,14 +42,17 @@ HOME = 1.10
 
 # Clamps. A fitted exponent on two matchdays can run away; these bound the
 # prior to a factor of roughly two either side of the mean team.
-MAX_RATIO = 2.0
-MIN_RATIO = 0.5
+# Attack and defence multiply, so a factor-of-two clamp on each permits a
+# factor of four on the fixture. The best side in Europe scores perhaps
+# half as much again as the average one.
+MAX_RATIO = 1.55
+MIN_RATIO = 0.65
 
 # And a clamp on the rate itself. The ratio clamp bounds a team relative to
 # the league; it does nothing if the league mean is wrong, which it will be
 # if the feed's counting stats arrive in a shape this did not expect. Four
 # goals is well beyond any Champions League fixture's true rate.
-MAX_LAMBDA = 4.0
+MAX_LAMBDA = 3.25
 MIN_LAMBDA = 0.2
 
 
@@ -64,7 +72,9 @@ def aggregate(players):
         t["scored"] += p["goals"]
         if p["pos"] == "GK":
             t["conceded"] += p["conceded"]
-        t["played"] = max(t["played"], p["team_played"])
+        # `matches`, not UEFA's `teamPlayed` — see fetch._attach_matches.
+        t["played"] = max(t["played"], int(p.get("matches")
+                                           or p.get("team_played") or 0))
         t["prices"].append(p["price"])
     for t in teams.values():
         # The fifteen dearest players: a squad's spine, not its academy.
