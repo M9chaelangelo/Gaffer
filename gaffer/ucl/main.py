@@ -66,6 +66,7 @@ def write_snapshot(rows, fx, matchday, problems):
     with open(SNAPSHOT, "w") as f:
         json.dump({"matchday": matchday, "fixtures": fx, "players": keep,
                    "problems": problems, "total_players": len(rows),
+                   "headers": fetch.LAST_HEADERS,
                    "fetched": datetime.now(timezone.utc).isoformat()},
                   f, ensure_ascii=False, separators=(",", ":"))
     return len(keep)

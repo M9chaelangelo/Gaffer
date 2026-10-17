@@ -349,5 +349,51 @@ def test_a_failed_fetch_names_every_attempt_rather_than_the_last(monkeypatch):
     with pytest.raises(RuntimeError) as e:
         fetch._get("https://example.invalid/feed")
     msg = str(e.value)
-    assert "attempt 1" in msg and "attempt 4" in msg
     assert "URLError" in msg and "timed out" in msg
+    # every header set it tried is named, not just the last
+    for h in fetch.HEADER_SETS:
+        assert h.get("User-Agent", "(default)") in msg
+
+
+def test_the_feed_is_never_asked_for_while_pretending_to_be_a_browser():
+    """Measured, not styled. Same URL, same second, on a runner:
+
+        curl's own headers       http 200, 0.79s to first byte, 2.06 MB
+        Chrome UA over HTTP/2    stream reset
+        Chrome UA over HTTP/1.1  45-second timeout
+
+    The edge fingerprints the mismatch. Anyone who "fixes" this file by
+    adding a realistic User-Agent will break it, so the rule is a test.
+    """
+    from gaffer.ucl import fetch
+
+    for headers in fetch.HEADER_SETS:
+        blob = " ".join(headers.values()).lower()
+        assert "mozilla" not in blob and "chrome" not in blob
+        assert "referer" not in {k.lower() for k in headers}
+        assert "origin" not in {k.lower() for k in headers}
+
+
+def test_the_header_set_that_worked_is_recorded(monkeypatch):
+    """So a change at UEFA's edge shows up as data, not as a guess."""
+    import contextlib
+    import io
+
+    from gaffer.ucl import fetch
+
+    monkeypatch.setattr(fetch, "LAST_HEADERS", None)
+    monkeypatch.setattr(fetch.time, "sleep", lambda _s: None)
+    tried = []
+
+    @contextlib.contextmanager
+    def fake(req, timeout=None):
+        tried.append(req.get_header("User-agent"))
+        if len(tried) <= 2:            # the curl set fails both its attempts
+            raise OSError("refused")
+        yield io.BytesIO(b'{"ok": true}')
+
+    monkeypatch.setattr(fetch.urllib.request, "urlopen", fake)
+
+    assert fetch._get("https://example.invalid/feed") == {"ok": True}
+    assert tried[0] == "curl/8.5.0"
+    assert fetch.LAST_HEADERS == "(default)"

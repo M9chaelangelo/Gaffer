@@ -25,14 +25,22 @@ from datetime import datetime
 from .rules import POS
 
 BASE = "https://gaming.uefa.com/en/uclfantasy/services/api"
-UA = {"User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                     "Chrome/140.0.0.0 Safari/537.36"),
-      "Accept": "application/json, text/plain, */*",
-      "Accept-Language": "en-GB,en;q=0.9",
-      "Referer": "https://gaming.uefa.com/en/uclfantasy/",
-      "Origin": "https://gaming.uefa.com",
-      "Connection": "close"}
+# Do not pretend to be a browser. Measured on a runner, same URL, same
+# second: with curl's own headers it answered 200 in 0.79s with two
+# megabytes; with Chrome's User-Agent and a Referer it reset the HTTP/2
+# stream, and over HTTP/1.1 it hung for the full 45 seconds. The edge is
+# fingerprinting the lie — a curl TLS handshake claiming to be Chrome is an
+# obvious bot, while a curl handshake with a curl User-Agent is just curl.
+# The original `Mozilla/5.0 (fpl-gaffer)` was already enough to be refused,
+# which is why the first live run died in four timeouts.
+#
+# Tried in order, and the one that worked is recorded in the snapshot, so if
+# UEFA changes its mind we find out from data rather than from a guess.
+HEADER_SETS = (
+    {"User-Agent": "curl/8.5.0", "Accept": "*/*"},   # proven on a runner
+    {"Accept": "*/*"},                               # urllib's own UA
+    {},
+)
 
 # Fields this module was written against. If UEFA drops one, say so loudly
 # rather than silently projecting zeros.
@@ -40,32 +48,39 @@ REQUIRED = ("id", "pDName", "skill", "value", "tName", "tId", "selPer",
             "totPts", "minsPlyd", "gS", "assist", "bR", "upcomingMatchesList")
 
 
-def _get(url, tries=4, timeout=45):
+# Which header set last worked, for the snapshot to record.
+LAST_HEADERS = None
+
+
+def _get(url, tries=2, timeout=45):
     """Fetch and parse, or raise with every attempt's actual error.
 
-    The first version re-raised only the last exception, and the caller
-    turned that into "no live feed". Six minutes of timeouts became one
-    sentence that did not say what had happened — the diagnosis was
-    collected and discarded, which is the same bug as printing a profile
-    you then throw away.
+    Each header set gets `tries` attempts before moving to the next. The
+    first version re-raised only its last exception and the caller turned
+    that into "no live feed", so six minutes of timeouts arrived as one
+    sentence that named no cause.
 
-    Shorter timeouts and one more try: a two-megabyte body that has not
-    begun after forty-five seconds is not slow, it is blocked, and four
-    quick attempts learn more than three long ones.
+    A two-megabyte body that has not begun after forty-five seconds is not
+    slow, it is blocked — the measured success took 0.79 seconds to first
+    byte — so a long timeout buys nothing but a long wait.
     """
+    global LAST_HEADERS
     errors = []
-    for i in range(tries):
-        try:
-            req = urllib.request.Request(url, headers=UA)
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                body = r.read()                  # read in full — a cap here
-            return json.loads(body)              # silently truncates the body
-        except Exception as e:                   # and corrupts the parse
-            detail = getattr(e, "code", None) or getattr(e, "reason", None)
-            errors.append(f"attempt {i + 1}: {e.__class__.__name__}"
-                          + (f" ({detail})" if detail else ""))
-            if i < tries - 1:
-                time.sleep(2 * (i + 1))
+    for headers in HEADER_SETS:
+        label = headers.get("User-Agent", "(default)")
+        for i in range(tries):
+            try:
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    body = r.read()              # read in full — a cap here
+                LAST_HEADERS = label             # silently truncates the body
+                return json.loads(body)          # and corrupts the parse
+            except Exception as e:
+                detail = getattr(e, "code", None) or getattr(e, "reason", None)
+                errors.append(f"{label} attempt {i + 1}: {e.__class__.__name__}"
+                              + (f" ({detail})" if detail else ""))
+                if i < tries - 1:
+                    time.sleep(2)
     raise RuntimeError(f"GET {url} failed — " + "; ".join(errors))
 
 

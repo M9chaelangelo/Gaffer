@@ -39,37 +39,25 @@ jobs:
       - run: pip install -r requirements.txt
       - name: tests
         run: python -m pytest tests/test_ucl.py -q
-      - name: how does UEFA answer this runner
-        # The first live run died in four timeouts. A curl showed DNS and
-        # TLS completing in 39ms and then the edge resetting the HTTP/2
-        # stream — an active rejection, not slowness. urllib speaks HTTP/1.1
-        # and hangs where curl gets an honest reset, which is why it read as
-        # a timeout. This step tries the variants that distinguish a bot
-        # wall from a protocol problem, and never fails the job.
+      - name: confirm UEFA still answers an honest client
+        # Measured here on 17 Oct 2026, same URL, same second: curl's own
+        # headers got 200 in 0.79s with two megabytes; Chrome's User-Agent
+        # reset the HTTP/2 stream and hung for 45 seconds over HTTP/1.1.
+        # The edge fingerprints the mismatch. This keeps that fact visible
+        # in the log, so the day it stops being true we see it in one line
+        # instead of in four timeouts. Never fails the job.
         continue-on-error: true
         run: |
           set +e
-          UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
           FEED='https://gaming.uefa.com/en/uclfantasy/services/api/Feed/players?gamedayId=3&language=en'
-          try () {
-            name="$1"; shift
-            out=$(curl -sS -o /tmp/body -D /tmp/head --max-time 45 \
-                  -w 'http %{http_code} ttfb %{time_starttransfer}s total %{time_total}s bytes %{size_download}' \
-                  "$@" 2>&1)
-            printf '%-26s %s\n' "$name" "$out"
-          }
-          try "h2 + browser UA"   -H "User-Agent: $UA" -H 'Referer: https://gaming.uefa.com/en/uclfantasy/' "$FEED"
-          try "h1.1 + browser UA" --http1.1 -H "User-Agent: $UA" -H 'Referer: https://gaming.uefa.com/en/uclfantasy/' "$FEED"
-          try "h1.1 + compressed" --http1.1 --compressed -H "User-Agent: $UA" "$FEED"
-          try "h1.1 + no headers" --http1.1 "$FEED"
-          try "the site itself"   --http1.1 -H "User-Agent: $UA" 'https://gaming.uefa.com/en/uclfantasy/'
-          try "uefa.com root"     --http1.1 -H "User-Agent: $UA" 'https://www.uefa.com/'
-          echo "--- response headers from the last successful transfer ---"
-          head -c 600 /tmp/head 2>/dev/null
-          echo
-          echo "--- first bytes of the last body ---"
-          head -c 300 /tmp/body 2>/dev/null
-          echo
+          printf '%-14s ' 'honest:'
+          curl -sS -o /dev/null --http1.1 --max-time 45 \
+            -w 'http %{http_code} ttfb %{time_starttransfer}s bytes %{size_download}\n' "$FEED"
+          printf '%-14s ' 'pretending:'
+          curl -sS -o /dev/null --http1.1 --max-time 20 \
+            -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36' \
+            -w 'http %{http_code} ttfb %{time_starttransfer}s bytes %{size_download}\n' "$FEED"
+          echo "(a timeout on the second line is the expected result)"
 
       - name: plan the matchday
         env:
