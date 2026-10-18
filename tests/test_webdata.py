@@ -254,3 +254,53 @@ def test_the_solver_status_survives_serialisation():
     i = src.find('"weeks": [{k: v for k, v in w.items()')
     assert i > 0, "plan.json week allow-list not found"
     assert "solver_status" in src[i:i + 400]
+
+
+def test_the_league_block_carries_the_rivals_actual_teams():
+    """P(finishing first) is a question about the other 41 teams, so the
+    serialiser has to carry them. It did not: league.py captured `squads`
+    and the allow-list in this block dropped them, so the simulator found
+    an empty list and had nobody to beat. Fifth time in this project that a
+    hand-maintained serialiser has lost a field the computation produced,
+    which is why the block is now a function with a test rather than a dict
+    literal buried inside a larger one."""
+    from gaffer import webdata
+
+    got = webdata.league_block({
+        "points_behind": 132, "n_all": 42,
+        "rows": [{"entry_name": "Ballon d'Orgu"}],
+        "squads": [{"entry": 7, "name": "Rival", "rank": 1, "total": 452,
+                    "picks": [{"element": 11, "multiplier": 2},
+                              {"element": 12, "multiplier": 0}]}]})
+    assert got["behind"] == 132 and got["teams"] == 42
+    assert got["leader"] == "Ballon d'Orgu"
+    assert got["squads"][0]["total"] == 452
+    assert got["squads"][0]["picks"] == [[11, 2], [12, 0]], (
+        "the multiplier is their lineup and their armband; without it a "
+        "replay guesses at both")
+
+
+def test_the_league_block_survives_an_empty_or_partial_snapshot():
+    from gaffer import webdata
+
+    assert webdata.league_block({})["squads"] == []
+    assert webdata.league_block({})["leader"] is None
+    assert webdata.league_block({"squads": [{"entry": 1}]})["squads"][0]["picks"] == []
+
+
+def test_a_rival_squad_round_trips_from_the_file_into_the_simulator():
+    """The join that was broken end to end: serialise, then score."""
+    import numpy as np
+
+    from gaffer import position, webdata
+
+    block = webdata.league_block({
+        "squads": [{"entry": 1, "picks": [{"element": 5, "multiplier": 2},
+                                          {"element": 6, "multiplier": 1},
+                                          {"element": 7, "multiplier": 0}]}]})
+    squads = [{"picks": [{"element": e, "multiplier": m}
+                         for e, m in q["picks"]]} for q in block["squads"]]
+    samples = np.array([[3.0, 4.0, 9.0]])
+    got, missing = position.squad_scores(squads, samples, {"5": 0, "6": 1, "7": 2})
+    assert got[0, 0] == 3.0 * 2 + 4.0      # captain doubled, bench ignored
+    assert missing == 0

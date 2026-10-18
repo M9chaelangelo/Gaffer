@@ -179,11 +179,38 @@ def build(proj, prof, lg, elite_own, price_fc, gws, squad_ids, weeks,
             clean_sheets=clean_sheets or []),
         "clean_sheets": clean_sheets or [],
         "planner": planner,
-        "league": {
-            "behind": lg.get("points_behind"),
-            "teams": lg.get("n_all"),
-            "leader": (lg["rows"][0]["entry_name"] if lg.get("rows") else None),
-        },
+        "league": league_block(lg),
+    }
+
+
+def league_block(lg):
+    """The mini-league, as the page and the simulator both need it.
+
+    `squads` is the part that matters and the part that was missing:
+    P(finishing first) is a question about the other 41 teams, so the
+    serialiser has to carry them. league.py had captured them since the
+    position simulator landed and this block did not pass them on, so the
+    simulator found an empty list and had nobody to beat. That is the fifth
+    time in this project a hand-maintained serialiser has lost a field the
+    computation produced, which is why it is now a function with a test
+    rather than a dict literal buried in a larger one.
+
+    Picks are trimmed to [id, multiplier] because this file is read on a
+    phone, and the multiplier already encodes both their lineup and their
+    armband — everything a replay needs.
+    """
+    rows = lg.get("rows") or []
+    return {
+        "behind": lg.get("points_behind"),
+        "teams": lg.get("n_all"),
+        "leader": rows[0]["entry_name"] if rows else None,
+        "squads": [
+            {"entry": q.get("entry"), "name": q.get("name"),
+             "rank": q.get("rank"), "total": q.get("total"),
+             "picks": [[p.get("element"), p.get("multiplier", 0)]
+                       for p in (q.get("picks") or [])]}
+            for q in (lg.get("squads") or [])
+        ],
     }
 
 
