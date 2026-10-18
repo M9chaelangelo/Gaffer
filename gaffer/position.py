@@ -103,9 +103,23 @@ def finishing_order(my_gw, rival_gw, my_total, rival_totals):
     }
 
 
+# How much of this gameweek's scoring rate a manager keeps for the rest of
+# the season. Zero means everyone reverts to the league average from next
+# week; one means today's squad is their squad until May.
+#
+# One is wrong, and wrong in a way that silently destroys the answer. The
+# first version had no such parameter, so a rival projecting three points
+# better this week projected three points better for thirty more weeks —
+# ninety points of compounded lead out of one gameweek's noise — and every
+# option came back at P(first) = 0.000%, which reads like a computed
+# result and is an artefact. Squads churn: the manager top of the table in
+# October is not reliably the one scoring most in March.
+PERSISTENCE = 0.25
+
+
 def project_season(my_gw, rival_gw, my_total, rival_totals, remaining,
                    my_sd=None, rival_sds=None, rng=None,
-                   shared=SHARED_FRACTION):
+                   shared=SHARED_FRACTION, persistence=PERSISTENCE):
     """The same question, carried to the end of the season.
 
     The simulated gameweek is played out properly; each remaining one is
@@ -124,8 +138,13 @@ def project_season(my_gw, rival_gw, my_total, rival_totals, remaining,
     theirs = rival_gw + np.asarray(rival_totals, dtype=float)[None, :]
 
     if remaining > 0:
-        my_mu = float(my_gw.mean())
-        rival_mu = rival_gw.mean(axis=0)
+        # Future weeks regress toward what the league as a whole scores,
+        # because a squad is not a permanent property of its manager.
+        league_mu = float(np.concatenate(
+            [my_gw.reshape(-1), rival_gw.reshape(-1)]).mean())
+        w = float(np.clip(persistence, 0.0, 1.0))
+        my_mu = w * float(my_gw.mean()) + (1 - w) * league_mu
+        rival_mu = w * rival_gw.mean(axis=0) + (1 - w) * league_mu
         s_me = float(my_sd if my_sd is not None else max(my_gw.std(), DEFAULT_SD))
         s_them = (np.asarray(rival_sds, dtype=float) if rival_sds is not None
                   else np.maximum(rival_gw.std(axis=0), DEFAULT_SD))
@@ -191,6 +210,11 @@ def disagreement(rows):
     best_place = max(rows, key=lambda r: r[key])
     if best_points["option"] == best_place["option"]:
         return None
+    # Two options that both finish first essentially never are not
+    # disagreeing about anything. Reporting "+0.0% more often" as a finding
+    # is how a rounding artefact becomes advice.
+    if best_place[key] - best_points[key] < 1e-4:
+        return None
     return {
         "points_pick": best_points["option"],
         "place_pick": best_place["option"],
@@ -237,8 +261,15 @@ def edge_variance_table(my_total, rival_totals, remaining,
         row = {"edge": edge}
         for sd in sds:
             mine = rng.normal(league_mean + edge, sd, draws)
+            # persistence=1 on purpose, and it is the opposite of the
+            # default for a reason. Everywhere else the input is one
+            # simulated gameweek, where a manager's apparent rate is mostly
+            # noise and must regress. Here `edge` is a *premise* — "suppose
+            # you score four a week better, all season" — so regressing it
+            # would answer a question nobody asked.
             got = project_season(mine, theirs, my_total, rival_totals,
-                                 remaining, my_sd=sd, rng=rng)
+                                 remaining, my_sd=sd, rng=rng,
+                                 persistence=1.0)
             row[f"sd{sd}"] = got["p_first"]
         out.append(row)
     return out

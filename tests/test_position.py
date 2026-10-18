@@ -148,3 +148,42 @@ def test_the_table_is_shaped_the_way_it_is_printed():
     assert [r["edge"] for r in table] == [0, 4]
     assert set(table[0]) == {"edge", "sd18", "sd32"}
     assert all(0.0 <= v <= 1.0 for r in table for k, v in r.items() if k != "edge")
+
+
+def test_one_gameweeks_noise_does_not_become_a_season_long_lead():
+    """The bug that made every option read 0.000%.
+
+    With persistence at 1 a rival who projects three points better this
+    week projects three points better for thirty more — ninety points of
+    compounded lead manufactured from one gameweek's noise. Squads churn;
+    the October leader is not reliably March's top scorer.
+    """
+    rng = np.random.default_rng(31)
+    n = 8000
+    mine = rng.normal(55, 18, n)
+    theirs = rng.normal(58, 18, (n, 20))          # rivals 3/gw better today
+
+    frozen = position.project_season(mine, theirs, 387, [420] * 20,
+                                     remaining=30, persistence=1.0)
+    regressed = position.project_season(mine, theirs, 387, [420] * 20,
+                                        remaining=30, persistence=0.25)
+    assert frozen["p_first"] < regressed["p_first"]
+    assert regressed["p_first"] > 0.0, "a live chance must not round to zero"
+
+
+def test_persistence_zero_means_everyone_scores_the_league_average():
+    rng = np.random.default_rng(37)
+    n = 6000
+    mine = rng.normal(40, 15, n)                  # much worse this week
+    theirs = rng.normal(70, 15, (n, 10))
+    level = position.project_season(mine, theirs, 500, [500] * 10,
+                                    remaining=30, persistence=0.0)
+    # Level on points and reverting to the same mean, our chance is roughly
+    # one in eleven rather than nil.
+    assert level["p_first"] > 0.02
+
+
+def test_two_options_that_both_never_win_are_not_a_disagreement():
+    rows = [{"option": "a", "mean_points": 62.45, "p_first_now": 0.0},
+            {"option": "b", "mean_points": 58.86, "p_first_now": 0.0}]
+    assert position.disagreement(rows) is None
