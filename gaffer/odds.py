@@ -245,3 +245,127 @@ def score_against_market(rows, predict):
                     if brier["model"] < brier["market"] else
                     "the market beats the model"),
     }
+
+
+# --- joining a price list to a fixture list ----------------------------------
+# The two feeds spell clubs differently and neither is wrong: UEFA writes
+# "Man City", "Bayern München", "S. Bratislava"; the odds API writes
+# "Manchester City", "Bayern Munich", "ŠK Slovan Bratislava". Matching has to
+# survive that without ever pairing the wrong two teams, because a fixture
+# joined to the wrong price is worse than a fixture with no price at all.
+
+# Noise words only. An earlier version also dropped "united", "borussia",
+# "real" and "city" as though they carried no information, which left
+# "Man Utd" as "man" and "Borussia Dortmund" as "dortmund" and silently
+# lost five of eighteen fixtures to the model. The distinctive word is
+# usually the one a stripper is tempted by.
+_NOISE = {"fc", "afc", "sk", "ss", "as", "sc", "cf", "ac", "bk", "kv", "vfb",
+          "cp", "bv", "rb", "ssc", "if", "il", "fk", "ak", "b", "the", "and",
+          "hove", "albion", "hotspur", "eindhoven", "athens", "praha",
+          "prague"}
+
+# Words shared by clubs that are not the same club. "Sporting CP" and
+# "Sporting Gijon" are both Sporting and both long enough to pass a naive
+# length test, which would have priced a Portuguese fixture off a Spanish
+# one. A generic word never identifies a club on its own.
+_GENERIC = {"sporting", "real", "atletico", "athletic", "dynamo", "dinamo",
+            "olympique", "racing", "union", "standard", "young", "boys",
+            "red", "star", "sport", "club", "city", "united", "rovers",
+            "wanderers", "county", "town", "borussia", "bayer", "bayern"}
+
+# Nordic and German letters that NFKD leaves alone, because they are
+# letters in their own right rather than accented vowels. The odds feed
+# writes "Bodo Glimt" where UEFA writes "Bodø/Glimt".
+_TRANSLIT = str.maketrans({"ø": "o", "Ø": "o", "å": "a", "Å": "a",
+                           "æ": "ae", "Æ": "ae", "ß": "ss", "đ": "d",
+                           "ı": "i", "ł": "l", "ð": "d", "þ": "th"})
+
+# The pairs no amount of folding joins, because the two feeds share no word
+# longer than three letters. Explicit beats clever: a wrong join prices a
+# fixture with another match's odds, which is worse than no price at all.
+_ALIASES = {
+    "manutd": "manchesterunited", "manunited": "manchesterunited",
+    "mancity": "manchestercity",
+    "spurs": "tottenham", "wolves": "wolverhampton",
+    "inter": "internazionale", "psg": "parissaintgermain",
+    "paris": "parissaintgermain", "atleti": "atleticomadrid",
+    "bayern": "bayernmunich", "bayernmunchen": "bayernmunich",
+    "psv": "psveindhoven", "bodo": "bodoglimt",
+    # UEFA writes "Sporting CP", the book writes "Sporting Lisbon", and
+    # "sporting" alone is deliberately refused — Sporting Gijon exists.
+    "sporting": "sportinglisbon",
+}
+
+MIN_TOKEN = 5          # the shortest word trusted to identify a club alone
+
+
+def _tokens(name):
+    import unicodedata
+    s = str(name).lower().translate(_TRANSLIT)
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c if (c.isalnum() or c.isspace()) else " " for c in s)
+    return [w for w in s.split() if w and w not in _NOISE]
+
+
+def fold(name):
+    """A club name reduced to what both feeds agree on."""
+    t = _tokens(name)
+    joined = "".join(t)
+    return _ALIASES.get(joined, joined)
+
+
+def _same_club(a, b):
+    """Same club, or not. Never "probably"."""
+    fa, fb = fold(a), fold(b)
+    if not fa or not fb:
+        return False
+    if fa == fb:
+        return True
+    # A prefix match is only safe when the shorter name says something.
+    # "Sporting" is a prefix of "Sporting Gijon" and of Sporting CP, and
+    # they are different clubs on different sides of Iberia.
+    shorter = fa if len(fa) <= len(fb) else fb
+    if shorter not in _GENERIC and (fa.startswith(fb) or fb.startswith(fa)):
+        return True
+    ta, tb = set(_tokens(a)), set(_tokens(b))
+    # One name is the other plus a league prefix: "Lens" and "RC Lens",
+    # "Leipzig" and "RB Leipzig". Enumerating every country's prefixes is a
+    # losing game; a subset is the general form of it. The smaller side must
+    # still carry a real word, so a stray initial cannot match everything.
+    small, large = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    if (small and small <= large
+            and any(len(w) >= 4 and w not in _GENERIC for w in small)):
+        return True
+    # Otherwise a long, *distinctive* word carried by both identifies the
+    # club: Dortmund, Bratislava, Feyenoord. Short ones do not — "city" is
+    # four clubs — and neither do generic ones, or Sporting CP would be
+    # priced off Sporting Gijon.
+    def distinctive(ts):
+        return {w for w in ts if len(w) >= MIN_TOKEN and w not in _GENERIC}
+    return bool(distinctive(ta) & distinctive(tb))
+
+def match_fixtures(fixtures, priced):
+    """{(home, away): devigged probabilities} for the fixtures we can join.
+
+    Returns the map and the fixtures left unpriced, so a run says which
+    lines are market and which are model instead of quietly mixing them.
+    Both sides of a fixture must match, and a price already used is not
+    reused — two fixtures claiming the same line means the fold collided
+    and the right answer is to price neither.
+    """
+    out, used, missed = {}, set(), []
+    for f in fixtures:
+        hit = None
+        for i, r in enumerate(priced):
+            if i in used:
+                continue
+            if _same_club(f["home"], r["home"]) and _same_club(f["away"], r["away"]):
+                hit = (i, r)
+                break
+        if hit is None:
+            missed.append(f"{f['home']} v {f['away']}")
+            continue
+        used.add(hit[0])
+        r = hit[1]
+        out[(f["home"], f["away"])] = (r["p_home"], r["p_draw"], r["p_away"])
+    return out, missed

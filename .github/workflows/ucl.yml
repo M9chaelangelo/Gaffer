@@ -60,6 +60,10 @@ jobs:
         env:
           MD: ${{ github.event.inputs.matchday }}
           SIMS: ${{ github.event.inputs.sims }}
+          # Absent, the plan still runs and every fixture line reads
+          # [model] instead of [odds]. Measured on matchday three, the
+          # model ran 19% high on goals, so the difference is real.
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
           # The matchday lives in config so a scheduled run needs no input;
           # a dispatch may override it.
