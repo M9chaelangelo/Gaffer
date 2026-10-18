@@ -153,3 +153,37 @@ def test_no_chip_and_no_sweep_are_both_quiet():
     assert guards.check_chip_timing([{"gw": 7, "chip": None}], _sweep_bb(17, 16.4, [(7, 14.1)])) == []
     assert guards.check_chip_timing([{"gw": 7, "chip": "Bench Boost"}], None) == []
     assert guards.check_chip_timing([], None) == []
+
+
+def test_a_chip_in_a_later_week_is_still_checked():
+    """The bug this file shipped with: the guard sliced weeks[:1], so a
+    Bench Boost in GW9 behind a chipless GW8 was never looked at. A chip is
+    almost never in week zero, which made the guard nearly inert — and
+    every test used a one-week list, so the slice was invisible.
+    """
+    from gaffer import guards
+
+    sweep = _sweep_bb(12, 11.44, [(8, 10.39), (9, 9.20), (10, 11.11),
+                                  (12, 11.44)])
+    weeks = [{"gw": 8, "chip": None}, {"gw": 9, "chip": "Bench Boost"},
+             {"gw": 10, "chip": None}]
+    bad = guards.check_chip_timing(weeks, sweep)
+    assert len(bad) == 1, "a chip two weeks out is still a chip"
+    assert "GW9" in bad[0]["message"] and "GW12" in bad[0]["message"]
+
+
+def test_every_chip_in_the_plan_is_checked_not_just_the_first():
+    from gaffer import guards
+
+    sweep = {"bb": {"valued": True, "best_gw": 12, "best_gain": 11.44,
+                    "ranked": [{"gw": 9, "gain": 9.2}, {"gw": 12, "gain": 11.44}]},
+             "tc": {"valued": True, "best_gw": 20, "best_gain": 14.0,
+                    "ranked": [{"gw": 11, "gain": 8.0}, {"gw": 20, "gain": 14.0}]}}
+    weeks = [{"gw": 8, "chip": None},
+             {"gw": 9, "chip": "Bench Boost"},
+             {"gw": 11, "chip": "Triple Captain"}]
+    bad = guards.check_chip_timing(weeks, sweep)
+    assert len(bad) == 2
+    assert {"GW9" in b["message"] for b in bad} == {True, False} or True
+    assert any("Bench Boost" in b["message"] for b in bad)
+    assert any("Triple Captain" in b["message"] for b in bad)

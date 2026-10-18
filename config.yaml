@@ -151,34 +151,24 @@ elite_sample: 100      # how many of the world's top managers to sample
 #
 # Prices here are SELLING prices as the Transfers page shows them, which is what
 # the budget is actually made of.
-current_squad:
-  # Pinned from the manager's own GW7 Transfers screen, 15 Oct 15:37 local.
-  # This is the post-wildcard fifteen: the GW6 Wildcard rebuilt the squad, so
-  # the API's last-finished-gameweek read is the OLD team and must not be used.
-  # Prices are SELLING prices as the Transfers page shows them, which is what
-  # the budget is actually made of.
-  - Leno          # 4.5  GKP  HUL (H)
-  - Tzolakis      # 4.7  GKP  FUL (A)
-  - Silva         # 5.0  DEF  SUN (H)
-  - Khalaili      # 5.0  DEF  BHA (A)
-  - Thomas        # 4.0  DEF  TOT (A)
-  - Davis         # 4.0  DEF  MCI (A)
-  - Bogle         # 4.6  DEF  MUN (H)
-  - Janelt        # 5.0  MID  LIV (H)
-  - B.Fernandes   # 11.9 MID  LEE (A)
-  - Saka          # 9.5  MID  NFO (A)
-  - Groß          # 5.8  MID  CRY (H)
-  - Schade        # 6.2  MID  LIV (H)  flagged — yellow, 75%
-  - Haaland       # 15.5 FWD  IPS (H)
-  - Kostoulas     # 5.6  FWD  CRY (H)
-  - João Pedro    # 7.6  FWD  EVE (A)
-bank: 0.6
+# Left empty on purpose. FPL's public API shows the last finished gameweek's
+# squad, which after a Wildcard is the OLD team — that is why this was pinned
+# at all, before GW7. The pin then outlived its gameweek: on the GW8 solve it
+# was still the GW7 fifteen and quietly reversed the Stach transfer, which the
+# `pin-stale` guard caught and called fatal.
+#
+# GW7 is played and published, so the API read is now correct and, unlike a
+# pin, it updates itself. Fill this in ONLY in the window between making a
+# transfer and that gameweek finishing, and set squad_pinned_for to match.
+current_squad: []
+
+bank: 0.8
 
 # Which gameweek the pin above was taken for. The pin is right for exactly
 # one deadline and wrong from the next, and it has already gone stale once —
 # a GW7 solve drafted against a squad the manager had not owned for three
 # days. `guards.check_squad_pin` refuses a plan built on a stale pin.
-squad_pinned_for: 7
+squad_pinned_for: 8
 
 # One free transfer into GW7; a second move costs 4. Declared because the
 # public API does not expose it.
