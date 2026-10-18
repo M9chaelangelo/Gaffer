@@ -55,6 +55,8 @@ jobs:
           FORCE: ${{ github.event.inputs.force }}
           FT: ${{ github.event.inputs.free_transfers }}
           WC: ${{ github.event.inputs.wildcard }}
+          # Read by gaffer.odds; absent, the solve falls back to the model.
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
           # The gate exists so the daily cron costs seconds on an ordinary day.
           # Dispatching with force on is how you ask for a solve anyway — the
