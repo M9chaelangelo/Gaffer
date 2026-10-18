@@ -159,3 +159,77 @@ def test_the_market_column_is_the_same_whatever_our_model_says():
     b = odds.score_against_market(rows, lambda h, a: (2.9, 0.4))
     assert a["brier"]["market"] == b["brier"]["market"]
     assert a["log_loss"]["market"] == b["log_loss"]["market"]
+
+
+# --- joining prices to fixtures ----------------------------------------------
+
+@pytest.mark.parametrize("a,b", [
+    ("B. Dortmund", "Borussia Dortmund"),
+    ("Man Utd", "Manchester United"),
+    ("Man City", "Manchester City"),
+    ("Real Madrid", "Real Madrid"),
+    ("Leipzig", "RB Leipzig"),
+    ("Lens", "RC Lens"),
+    ("S. Bratislava", "ŠK Slovan Bratislava"),
+    ("Bayern München", "Bayern Munich"),
+    ("Paris", "Paris Saint Germain"),
+    ("Atleti", "Atlético Madrid"),
+    ("Inter", "Internazionale"),
+    ("Bodø/Glimt", "Bodo Glimt"),
+    ("PSV", "PSV Eindhoven"),
+    ("Club Brugge", "Club Brugge"),
+])
+def test_the_two_feeds_spell_these_clubs_differently_and_both_are_right(a, b):
+    assert odds._same_club(a, b), f"{a!r} should match {b!r}"
+
+
+@pytest.mark.parametrize("a,b", [
+    ("Man City", "Manchester United"),
+    ("Hull City", "Manchester City"),
+    ("Real Madrid", "Real Betis"),
+    ("Real Betis", "Real Sociedad"),
+    ("Sporting CP", "Sporting Gijon"),
+    ("Arsenal", "Aston Villa"),
+    ("Liverpool", "Everton"),
+    ("Atletico Madrid", "Athletic Bilbao"),
+    ("Young Boys", "Boys Town"),
+    ("Dynamo Kyiv", "Dynamo Dresden"),
+])
+def test_two_different_clubs_never_match(a, b):
+    """A fixture joined to the wrong price is worse than one with no price:
+    it looks measured and is fiction. Sporting CP against Sporting Gijon is
+    the case that nearly shipped — both are Sporting, and both clear any
+    naive length test."""
+    assert not odds._same_club(a, b), f"{a!r} must not match {b!r}"
+
+
+def test_a_price_is_never_used_for_two_fixtures():
+    fixtures = [{"home": "Man City", "away": "AEK Athens"},
+                {"home": "Man Utd", "away": "Como"}]
+    priced = [{"home": "Manchester City", "away": "AEK Athens",
+               "p_home": 0.8, "p_draw": 0.12, "p_away": 0.08}]
+    joined, missed = odds.match_fixtures(fixtures, priced)
+    assert len(joined) == 1
+    assert missed == ["Man Utd v Como"]
+
+
+def test_an_unpriced_fixture_is_named_so_the_report_can_say_model():
+    fixtures = [{"home": "Sabah", "away": "B. Dortmund"}]
+    joined, missed = odds.match_fixtures(fixtures, [])
+    assert joined == {} and missed == ["Sabah v B. Dortmund"]
+
+
+def test_a_matched_fixture_keeps_its_orientation():
+    fixtures = [{"home": "Lens", "away": "Club Brugge"}]
+    priced = [{"home": "RC Lens", "away": "Club Brugge",
+               "p_home": 0.3, "p_draw": 0.25, "p_away": 0.45}]
+    joined, _ = odds.match_fixtures(fixtures, priced)
+    assert joined[("Lens", "Club Brugge")] == (0.3, 0.25, 0.45)
+
+
+def test_sporting_cp_is_priced_by_alias_and_gijon_still_is_not():
+    """Refusing to match "Sporting" is right, so the club that needs it
+    gets an explicit alias rather than a loosened rule."""
+    assert odds._same_club("Sporting CP", "Sporting Lisbon")
+    assert not odds._same_club("Sporting CP", "Sporting Gijon")
+    assert not odds._same_club("Sporting Lisbon", "Sporting Gijon")

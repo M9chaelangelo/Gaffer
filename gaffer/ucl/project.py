@@ -91,6 +91,24 @@ def lambdas_from_odds(ph, pd_, pa):
 
 
 def _odds_for(odds, home, away):
+    """A configured 1X2 for this fixture, oriented home-first, or None.
+
+    Accepts either a (home, away) tuple key — what `odds.match_fixtures`
+    produces from a live feed — or the "Home v Away" string a human writes
+    in config.
+    """
+    if isinstance(odds, dict):
+        direct = odds.get((home, away))
+        if direct:
+            return tuple(float(x) for x in direct)
+        flipped = odds.get((away, home))
+        if flipped:
+            a, d, h = (float(x) for x in flipped)
+            return (h, d, a)
+    return _odds_for_named(odds, home, away)
+
+
+def _odds_for_named(odds, home, away):
     """A configured 1X2 for this fixture, oriented home-first, or None."""
     for key, v in (odds or {}).items():
         parts = [s.strip().lower() for s in

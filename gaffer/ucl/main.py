@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 
 import yaml
 
+from .. import odds as oddsmod
 from . import fetch, plan, project
 
 SNAPSHOT = "gaffer/ucl/snapshot.json"
@@ -105,7 +106,16 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
             r["forced_out"] = True
     unmatched_out = [n for n in forced_names if _match(pool, n) is None]
 
-    samples, fxrates = project.simulate(pool, fx, odds=cfg.get("odds"), n=n)
+    # Measured beats modelled. Configured odds win over the feed, the feed
+    # wins over the strength model, and every fixture line says which it got.
+    book = dict(cfg.get("odds") or {})
+    priced, note = oddsmod.forward(cfg.get("odds_sport", "soccer_uefa_champs_league"))
+    unpriced = []
+    if priced:
+        joined, unpriced = oddsmod.match_fixtures(fx, priced)
+        for k, v in joined.items():
+            book.setdefault(k, v)
+    samples, fxrates = project.simulate(pool, fx, odds=book, n=n)
     projected = project.summarise(pool, samples)
     columns = {r["id"]: j for j, r in enumerate(pool)}
 
@@ -145,6 +155,8 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         "problems": problems,
         "missing_from_squad": missing,
         "unmatched_out": unmatched_out,
+        "odds_note": note,
+        "unpriced_fixtures": unpriced,
         "forced_out": sorted(forced),
         "fixtures": fxrates,
         "plan": result,
@@ -303,6 +315,9 @@ def report(out, write=None):
         w("!! players you marked out were not matched in the feed: "
           + ", ".join(out["unmatched_out"]))
 
+    w(f"\nodds: {out.get('odds_note', 'not fetched')}"
+      + (f"  —  no price for: {', '.join(out['unpriced_fixtures'])}"
+         if out.get("unpriced_fixtures") else ""))
     w("\nfixtures (kick-off order — the armband can move between days)")
     for f in out["fixtures"]:
         w(f"  {(f['kickoff'] or '')[:16]}  {f['home']:>22} {f['lh']:.2f}"
