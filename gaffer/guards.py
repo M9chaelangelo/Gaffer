@@ -182,7 +182,12 @@ def check_chip_timing(weeks, sweep, tolerance=0.5):
     favour of today.
     """
     out = []
-    for w in (weeks or [])[:1]:
+    # Every week, not just the first. The first version sliced [:1], copied
+    # from check_solver where only the immediate gameweek matters — and a
+    # chip is almost never in week zero, so a guard written to catch chips
+    # played too early could not fire for a chip played in any later week.
+    # It passed its tests because they were all one week long.
+    for w in (weeks or []):
         chip = w.get("chip")
         if not chip:
             continue

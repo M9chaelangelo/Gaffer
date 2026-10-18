@@ -261,7 +261,7 @@ def team_strength(boot, prior_games=6.0, fixtures=None, form_weight=0.0,
 
 def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
           form_weight=0.30, strength_weight=0.5, minutes_mult=None,
-          team_form_weight=0.0, team_form_half_life=2.5):
+          team_form_weight=0.0, team_form_half_life=2.5, market=None):
     teams = {t["id"]: t["short_name"] for t in boot["teams"]}
     # One change, felt everywhere: these two dicts drive the clean-sheet
     # lambdas, the ceiling model's input, and every player's fixture
@@ -270,7 +270,8 @@ def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
                              form_weight=team_form_weight,
                              half_life=team_form_half_life)
     # Expected goals conceded per team per gameweek, calibrated against Solio.
-    lams, _ = defence.lambdas(boot, fixtures, gws, atk, solio_feed)
+    lams, _ = defence.lambdas(boot, fixtures, gws, atk, solio_feed,
+                              market=market)
     postypes = {p["id"]: p["singular_name_short"] for p in boot["element_types"]}
     # The 'finished' flag lags, so infer rounds played from actual minutes.
     played = max(1, round(max(e["minutes"] for e in boot["elements"]) / 90))

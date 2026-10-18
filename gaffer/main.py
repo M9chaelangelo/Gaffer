@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import yaml
 
 from . import (cache, crowd, fetch, games, guards, imminent, league, matchup,
+               odds,
                projections, prices, template,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
@@ -100,6 +101,25 @@ def main():
             return
     print(f"gameweek {gw}, planning {gws}")
     feed = fetch.solio(cfg["solio_url"])
+
+    # Bookmaker prices, where they exist, replace this engine's own goal
+    # rates. Measured over sixty played matches the market beat the model on
+    # Brier and log loss even with lookahead bias in the model's favour, and
+    # the model's p(home) spread was 1.9x too narrow.
+    market, odds_note = {}, "not fetched"
+    priced, odds_note = odds.forward(cfg.get("odds_sport", "soccer_epl"))
+    if priced:
+        # Only the fixtures actually scheduled in the horizon matter.
+        full = {t["id"]: t["name"] for t in boot["teams"]}
+        want = [{"home": full[x["team_h"]], "away": full[x["team_a"]]}
+                for x in fx if x.get("event") in gws_long]
+        market, unpriced = odds.match_fixtures(want, priced)
+        odds_note = (f"{len(market)} of {len(want)} fixtures in GW"
+                     f"{gws_long[0]}-{gws_long[-1]} priced by the market")
+        if unpriced:
+            odds_note += f"; modelled: {len(unpriced)}"
+    print(f"  odds: {odds_note}")
+
     mins_mult = rotation.congestion(
         boot, cfg.get("european_teams", ()), cfg.get("european_weeks", ()),
         cfg.get("european_haircut", 0.12), cfg.get("midweek_haircut", 0.06))
@@ -107,7 +127,8 @@ def main():
                              cfg.get("form_weight", 0.30),
                              cfg.get("strength_weight", 0.5), mins_mult,
                              cfg.get("team_form_weight", 0.0),
-                             cfg.get("team_form_half_life", 2.5))
+                             cfg.get("team_form_half_life", 2.5),
+                             market=market)
     if cfg.get("calibrate_to_solio", True):
         scale, n = calibrate.fit(proj, feed, gw)
         if n:
@@ -276,7 +297,8 @@ def main():
     atk, dfn = projections.team_strength(
         boot, fixtures=fx, form_weight=cfg.get("team_form_weight", 0.0),
         half_life=cfg.get("team_form_half_life", 2.5))
-    lams, tmn = defence.lambdas(boot, fx, gws, atk, fetch.solio(cfg["solio_url"]))
+    lams, tmn = defence.lambdas(boot, fx, gws, atk, fetch.solio(cfg["solio_url"]),
+                                market=market)
     cs_table = defence.table(boot, lams, tmn, gw, limit=12)
 
     # Who is actually in form, so the page can be checked against what you

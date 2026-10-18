@@ -48,11 +48,31 @@ def team_xgc(boot, prior_games=6.0):
             for t in raw}
 
 
-def lambdas(boot, fixtures, gws, atk, solio_feed=None, home_factor=0.88):
+def lambdas(boot, fixtures, gws, atk, solio_feed=None, home_factor=0.88,
+            market=None):
     """Expected goals conceded for every team in every gameweek.
 
     lambda = the team's own concession rate, scaled by how good the opponent's
-    attack is, adjusted for home advantage."""
+    attack is, adjusted for home advantage.
+
+    `market` overrides that model where a bookmaker has priced the fixture,
+    as {(home name, away name): (p_home, p_draw, p_away)} devigged. It is
+    not a refinement, it is a replacement, and the reason is measured:
+    scored over sixty played matches, the market beat this model on both
+    Brier (0.6307 against 0.6523) and log loss (1.0471 against 1.0794) —
+    and did so even though our rates were computed with today's team
+    strength, which is lookahead bias working in our favour.
+
+    The failure is not scale but *spread*. Across twenty upcoming fixtures
+    our p(home) ran 0.30 to 0.56 where the market ran 0.21 to 0.68: a
+    correlation of 0.82, so the ranking is sound, against a regression
+    slope of 1.55, so the sizing is not. Three shrinkages stack — xGC
+    toward the league mean over six games of prior, the opponent-attack
+    clamp, then Solio blending — and each is defensible while the three
+    together flatten every fixture toward a coin toss. That under-rates
+    good teams in good fixtures, which is exactly the decision a manager
+    is making.
+    """
     tm = {t["id"]: t["short_name"] for t in boot["teams"]}
     base = team_xgc(boot)
     league = sum(base.values()) / max(1, len(base))
@@ -67,6 +87,29 @@ def lambdas(boot, fixtures, gws, atk, solio_feed=None, home_factor=0.88):
             lam = base.get(side, league) * max(0.45, min(2.2, atk.get(opp, 1.0)))
             lam *= home_factor if home else 1 / home_factor
             out[side][g] = max(0.25, lam)
+
+    # Where the market has spoken, use it. Recorded per team-gameweek so the
+    # Solio calibration below cannot drag a measured rate back toward a
+    # modelled one.
+    priced = set()
+    if market:
+        full = {t["id"]: t["name"] for t in boot["teams"]}
+        for x in fixtures:
+            g = x["event"]
+            if g not in gws:
+                continue
+            h, a = x["team_h"], x["team_a"]
+            pr = market.get((full.get(h), full.get(a)))
+            if not pr:
+                continue
+            lh, la = _market_lambdas(*pr)
+            # out[t][g] is what t CONCEDES, so each side takes the other's
+            # scoring rate. Getting this backwards would invert every clean
+            # sheet in the gameweek.
+            out[h][g] = max(0.25, la)
+            out[a][g] = max(0.25, lh)
+            priced.add((h, g))
+            priced.add((a, g))
 
     # Calibrate against Solio's published expected goals against, for the teams
     # it covers. Using a better model to correct our own where they overlap
@@ -83,8 +126,15 @@ def lambdas(boot, fixtures, gws, atk, solio_feed=None, home_factor=0.88):
             k = sorted(ratios)[len(ratios) // 2]      # median, robust to outliers
             for t in out:
                 for g in out[t]:
-                    out[t][g] *= k
+                    if (t, g) not in priced:
+                        out[t][g] *= k
     return out, tm
+
+
+def _market_lambdas(ph, pd_, pa):
+    """Goal rates whose scoreline matrix reproduces a devigged 1X2."""
+    from .ucl.project import lambdas_from_odds
+    return lambdas_from_odds(ph, pd_, pa)
 
 
 def clean_sheet(lam):
