@@ -5,6 +5,7 @@ wrong, because you have no way to judge whether it was unlucky or broken. Every
 recommendation here carries the numbers it was made from, so you can disagree
 with it on the evidence rather than on faith.
 """
+from . import horizon
 
 
 def _fmt_pct(v):
@@ -144,7 +145,15 @@ def transfers(week, proj, prof, lg_own, pack_own, elite_own, price_fc, gws):
     wc = week.get("chip") == "Wildcard"
     for a, b in pairs:
         oc, ic = card(a), card(b)
-        out.append({"out": oc, "in": ic, "reasons": _reasons(oc, ic, wc)})
+        # WHEN the gain arrives, not just how much of it there is over the
+        # horizon. Two swaps with the same eight-week total can be a keeper
+        # and a hop-on-hop-off, and the endpoint alone does not say which.
+        rows = horizon.profile(proj[a["id"]]["ep"], proj[b["id"]]["ep"], gws)
+        out.append({"out": oc, "in": ic, "reasons": _reasons(oc, ic, wc),
+                    "timing": horizon.summarise(rows),
+                    "timing_note": horizon.verdict(rows),
+                    "weekly_gain": [round(r["week"], 2) for r in rows],
+                    "cumulative_gain": [round(r["cumulative"], 2) for r in rows]})
     for b in extra_in:
         ic = card(b)
         out.append({"out": None, "in": ic,
