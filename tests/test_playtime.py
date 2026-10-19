@@ -38,7 +38,11 @@ def test_a_new_starter_is_not_charged_for_the_weeks_he_was_not_picked():
     """
     r = playtime.estimate(log([0, 0, 26, 71, 71, 87, 90]), 7)
     assert r["p_start"] > 0.85
-    assert r["exp_min"] > 78
+    # The property, not a number tuned to one setting of the dials: he reads as
+    # a starter rather than the half-and-half the season average made of him.
+    assert r["exp_min"] > 70
+    season_average = sum(m for m in [0, 0, 26, 71, 71, 87, 90]) / 7
+    assert r["exp_min"] > season_average + 20
 
 
 def test_the_prior_is_the_player_own_rate_not_a_coin_toss():
@@ -90,3 +94,34 @@ def test_table_skips_gameweeks_a_club_did_not_play():
     t = playtime.table(boot, fixtures, live, now=2)
     # Gameweek 2 has no fixture for team 1, so the zero is not counted.
     assert t[7]["p_start"] > 0.9
+
+
+def test_a_single_missed_week_does_not_halve_a_settled_starter():
+    """Thomas started six in a row at ninety minutes, then missed one game
+    carrying no injury flag. Counting that nought at full weight read him as
+    47% likely to start and 43 expected minutes, which is a wrong transfer."""
+    r = playtime.estimate(log([90, 77, 90, 90, 90, 90, 0]), 7)
+    assert r["p_start"] > 0.55
+    assert r["exp_min"] > 50
+
+
+def test_cameos_are_not_discounted_the_way_noughts_are():
+    """A nought is ambiguous — dropped, injured, suspended, unused — and the
+    feed does not say which. A cameo says plainly that he was available and
+    not picked, so Barkley's 6, 4 and 18 must keep their full weight."""
+    dropped = playtime.estimate(log([73, 77, 90, 62, 6, 4, 18]), 7)
+    absent = playtime.estimate(log([73, 77, 90, 62, 0, 0, 0]), 7)
+    assert dropped["p_start"] < 0.3
+    assert absent["p_start"] > dropped["p_start"]
+
+
+def test_minutes_when_starting_use_a_longer_window_than_selection():
+    """Groß has played 90 six times and then 70. Measured over the selection
+    half-life his last match alone is most of the evidence and he reads as a
+    78-minute starter; whether a man is picked moves faster than how long he
+    lasts."""
+    r = playtime.estimate(log([90, 90, 90, 90, 90, 90, 70]), 7)
+    assert r["mins_if_start"] > 82
+    short = playtime.estimate(log([90, 90, 90, 90, 90, 90, 70]), 7,
+                              duration_half_life=0.8)
+    assert short["mins_if_start"] < r["mins_if_start"]

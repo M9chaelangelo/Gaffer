@@ -56,6 +56,42 @@ HALF_LIFE = 0.8
 # and 0.25 beat both 0.5 and 1.0.
 PRIOR_WEIGHT = 0.25
 
+# A week with no minutes at all is weaker evidence than a cameo, and the first
+# version of this treated them alike. A cameo says plainly that he was
+# available and not picked to start — Barkley's 6, 4 and 18 are a demotion and
+# nothing else. A nought says only that he did not play, which covers being
+# dropped, being injured, being suspended and being an unused substitute, and
+# the feed does not say which. So Thomas, who started six in a row at ninety
+# minutes and then missed one game, read as 47% likely to start while carrying
+# no injury flag at all.
+#
+# Discounting the ambiguous evidence leaves Barkley where he was, because none
+# of his evidence is ambiguous, and lifts Thomas to a defensible 0.6.
+#
+# The backtest cannot settle the value, and said so twice. Measured over the
+# 272 cases with 2%+ ownership — the players decisions are actually made about,
+# and ownership is known before the gameweek, so selecting on it is not
+# selecting on the outcome — every setting from 1.0 to 0.3 scored between
+# 12.99 and 13.13 minutes of error. That is a one per cent spread on 272
+# samples: noise. Over all 1141 cases, including the many fringe players, not
+# discounting at all was 0.8 minutes better.
+#
+# So it is set in the middle, on which error costs more rather than which is
+# larger. A six-game starter who missed one week reading 43 expected minutes
+# is a wrong transfer. The error the discount adds lands on players who are not
+# in contention for a squad place, where twenty minutes against five changes
+# nothing. Revisit with a season of evidence instead of four gameweeks.
+ZERO_WEIGHT = 0.45
+
+# Whether a man is picked changes faster than how long he lasts once he is on
+# the pitch, so the two are measured over different windows. Groß has played
+# 90, 90, 90, 90, 90, 90, 70: at the selection half-life his last match alone
+# is more than half the evidence and he read as a 78-minute starter, against 84
+# over this one. The backtest is indifferent — 19.48 against 19.68 minutes of
+# MAE, and the longer window is the better of the two on the 90th percentile —
+# so this is chosen on the pattern it describes, not on a score it wins.
+DURATION_HALF_LIFE = 2.5
+
 # Used only when there is no log at all to take a start rate from.
 PRIOR_START_FALLBACK = 0.5
 
@@ -70,7 +106,8 @@ MIN_START_MINUTES = 45.0
 
 
 def estimate(rounds, now, half_life=HALF_LIFE, prior_weight=PRIOR_WEIGHT,
-             prior_start=None):
+             prior_start=None, duration_half_life=DURATION_HALF_LIFE,
+             zero_weight=ZERO_WEIGHT):
     """Role estimate from a decayed match log.
 
     `rounds` is [(gw, minutes, starts, slots)] covering only the gameweeks the
@@ -89,14 +126,18 @@ def estimate(rounds, now, half_life=HALF_LIFE, prior_weight=PRIOR_WEIGHT,
     nw = na = 0.0          # non-start weeks, and those he appeared in at all
     for gw, mins, starts, slots in rounds:
         slots = max(1, slots)
-        w = 0.5 ** ((now - gw) / half_life) * slots
+        age = (now - gw)
+        w = 0.5 ** (age / half_life) * slots
+        dw = 0.5 ** (age / duration_half_life) * slots
         per = mins / slots
         started = starts / slots
+        if per <= 0 and started < 0.5:
+            w *= zero_weight            # he did not play; the feed will not say why
         sw += w
         sm += w * started
         if started >= 0.5:
-            fw += w
-            fm += w * max(per, MIN_START_MINUTES)
+            fw += dw
+            fm += dw * max(per, MIN_START_MINUTES)
         else:
             nw += w
             if per > 0:
