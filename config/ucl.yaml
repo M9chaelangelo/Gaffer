@@ -47,6 +47,26 @@ out:
   - Olise            # suspended for MD3
   - Zalazar          # injured
 
+# --- availability ------------------------------------------------------------
+# UEFA writes availability as prose and it lags. On 19 Oct 2026 FPL had Haaland
+# at "Unspecified injury - 75% chance of playing" at 13:00 and the UEFA feed
+# still said "In contention to start next game" four hours later, with the
+# matchday deadline the next afternoon — and the engine was captaining him.
+#
+# Five of the thirty-six clubs in the league phase are Premier League sides, so
+# for those the numeric FPL flag is read instead. Set false to use only UEFA's
+# prose and whatever is typed below.
+use_fpl_flags: true
+
+# P(available), by name, for players no feed has caught up with yet. These win
+# over a fetched flag, because someone read the team news to write them. A
+# surname is enough; a name that matches nothing is reported, not ignored.
+#
+#   doubts:
+#     Haaland: 0.5      # manager said "we will see"
+#     Barkley: 0.0      # left out of the travelling squad
+doubts: {}
+
 # Devigged 1X2, home-first, by any substring of the two clubs' names. When a
 # fixture is listed here these win; when it is not, the goal rates come from
 # the feed's own strength model and the run says "[model]" against that line.

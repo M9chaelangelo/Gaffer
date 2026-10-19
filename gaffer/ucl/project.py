@@ -67,6 +67,29 @@ FULL_GIVEN_START = 0.80        # P(60+ | started)
 PART_MINUTES = 0.45            # minutes fraction for a cameo
 YELLOW_RATE = 0.08
 
+# --- how much of the available football a player has actually played --------
+#
+# The previous version of start_prob read the prose, then nudged a flat base
+# up or down by eight points. Measured across the 701 players with a matchday
+# three fixture it returned 0.93 for almost all of them: Haaland, who has
+# played every minute, and Barkley, who has played 106 of 180 and started once,
+# and Kvaratskhelia, who has played 24, were all 0.93. A start probability that
+# does not distinguish those three is not a start probability.
+#
+# UEFA's feed gives cumulative minutes and nothing per match, so the usable
+# signal is the SHARE of his club's available minutes a player has taken.
+# Inverting the share into a start probability needs two assumptions, both
+# measurable later and neither doing much work at the extremes:
+STARTER_SHARE = 0.88    # of a match, for a man who starts it
+CAMEO_SHARE = 0.25      # of a match, for a man who comes off the bench
+BENCH_USE = 0.60        # P(gets on at all | does not start)
+# Two matches is not a rate, so shrink toward the pool. Light on purpose: a
+# man who has played 180 of 180 minutes should not be dragged to the middle.
+PRIOR_MATCHES = 0.5
+PRIOR_START = 0.60
+# Nobody is certain and nobody is impossible while his name is in the squad.
+MIN_START, MAX_START = 0.03, 0.95
+
 
 def dixon_coles(lh, la, maxg=9):
     h = poisson.pmf(np.arange(maxg + 1), lh)
@@ -135,23 +158,57 @@ def rates(p):
             w * p["recoveries90"] + (1 - w) * r0)
 
 
+def minutes_share(p):
+    """Fraction of his club's available minutes this player has taken."""
+    played = int(p.get("matches") or p.get("team_played") or 0)
+    if not played:
+        return None
+    return min(1.0, p["minutes"] / (90.0 * played))
+
+
 def start_prob(p):
-    """P(starts). Zero means zero: a suspended player is not a long shot."""
+    """P(starts). Zero means zero: a suspended player is not a long shot.
+
+    Order matters. The prose is about THIS matchday and the minutes are about
+    his role, so a suspension or an injury overrides however much football he
+    has played; an availability flag scales what is left.
+    """
     if p.get("forced_out"):
         return 0.0
     words = f"{p.get('trained') or ''} {p.get('status') or ''}".lower()
     if any(k in words for k in OUT):
         return 0.0
+    # An outside flag — FPL's, for the English clubs — beats UEFA's own prose,
+    # which lags a day or more. On 19 Oct 2026 FPL had Haaland at a 75% chance
+    # of playing four hours before UEFA still called him "in contention".
+    chance = p.get("availability")
     if any(k in words for k in DOUBT):
-        return DOUBT_START
-    t = (p.get("trained") or "").lower()
-    base = 0.85 if "contention" in t else 0.70
+        return DOUBT_START if chance is None else min(DOUBT_START, chance)
+
+    # Per-match minutes where the history log has managed to difference them —
+    # see history.py. Strictly better than the share below, because it can tell
+    # a man who starts and is replaced on sixty from a man who starts one game
+    # and watches the next; the share reads both as 0.67.
+    log = p.get("match_minutes")
+    if log:
+        starts = sum(1.0 for m in log if m >= 45.0)
+        base = ((starts + PRIOR_MATCHES * PRIOR_START)
+                / (len(log) + PRIOR_MATCHES))
+        base = min(MAX_START, max(MIN_START, base))
+        return base if chance is None else base * chance
+
+    share = minutes_share(p)
+    if share is None:
+        # Nothing played yet by anyone at his club: all we have is the prose.
+        return 0.85 if "contention" in words else 0.70
     played = int(p.get("matches") or p.get("team_played") or 0)
-    if played and p["minutes"] >= 60 * played * 0.7:
-        base = min(base + 0.08, 0.93)
-    elif played and p["minutes"] == 0:
-        base = max(base - 0.35, 0.10)
-    return base
+    floor = CAMEO_SHARE * BENCH_USE
+    raw = (share - floor) / (STARTER_SHARE - floor)
+    raw = min(1.0, max(0.0, raw))
+    base = ((played * raw + PRIOR_MATCHES * PRIOR_START)
+            / (played + PRIOR_MATCHES))
+    base = min(MAX_START, max(MIN_START, base))
+    return base if chance is None else base * chance
 
 
 def team_baselines(rate, mu):

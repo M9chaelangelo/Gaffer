@@ -6,7 +6,7 @@ import yaml
 
 from . import (cache, crowd, fetch, games, guards, imminent, league, matchup,
                odds,
-               projections, prices, template,
+               playtime, projections, prices, template,
                optimise, report, timing, styles, elite, explain, defence,
                calibrate, rotation, planner, webdata, wildcard, teamform)
 from .learn import ledger
@@ -123,12 +123,33 @@ def main():
     mins_mult = rotation.congestion(
         boot, cfg.get("european_teams", ()), cfg.get("european_weeks", ()),
         cfg.get("european_haircut", 0.12), cfg.get("midweek_haircut", 0.06))
+
+    # Expected minutes from each player's own match log. One request per
+    # finished gameweek, cached for a week, because the live payload carries
+    # every player at once — the per-player route would be six hundred calls.
+    play = None
+    if cfg.get("minutes_recency", True):
+        live_log = {}
+        for g in range(1, gw):
+            try:
+                live_log[g] = cache.cached(f"live:{g}", lambda g=g: fetch.live(g),
+                                           ttl=7 * 24 * 3600)
+            except Exception:                               # noqa: BLE001
+                continue
+        if live_log:
+            play = playtime.table(boot, fx, live_log, now=max(live_log),
+                                  half_life=cfg.get("minutes_half_life",
+                                                     playtime.HALF_LIFE))
+            print(f"  minutes: measured off {len(live_log)} gameweeks of match logs")
+        else:
+            print("  minutes: no match logs reachable — falling back to the "
+                  "season average")
     proj = projections.build(boot, fx, gws_long, feed, cfg["solio_weight"],
                              cfg.get("form_weight", 0.30),
                              cfg.get("strength_weight", 0.5), mins_mult,
                              cfg.get("team_form_weight", 0.0),
                              cfg.get("team_form_half_life", 2.5),
-                             market=market)
+                             market=market, playtime_table=play)
     if cfg.get("calibrate_to_solio", True):
         scale, n = calibrate.fit(proj, feed, gw)
         if n:

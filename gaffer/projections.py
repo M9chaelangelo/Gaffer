@@ -261,7 +261,8 @@ def team_strength(boot, prior_games=6.0, fixtures=None, form_weight=0.0,
 
 def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
           form_weight=0.30, strength_weight=0.5, minutes_mult=None,
-          team_form_weight=0.0, team_form_half_life=2.5, market=None):
+          team_form_weight=0.0, team_form_half_life=2.5, market=None,
+          playtime_table=None):
     teams = {t["id"]: t["short_name"] for t in boot["teams"]}
     # One change, felt everywhere: these two dicts drive the clean-sheet
     # lambdas, the ceiling model's input, and every player's fixture
@@ -305,9 +306,24 @@ def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
         pos = postypes[e["element_type"]]
         mins = e["minutes"]
         avg_min = mins / played
-        exp_min = (0.8 * avg_min + 0.2 * 90) if avg_min >= 70 else 0.85 * avg_min
-        exp_min = min(90.0, exp_min) * _availability(e)
-        if p60 is not None and mins > 0:
+        role = (playtime_table or {}).get(e["id"])
+        if role is not None:
+            # Measured from his own match log rather than from the season's
+            # round count. `mins / played` charges a man for gameweeks he was
+            # never in the side for and credits him for weeks he no longer
+            # plays: Barcola, who won his place in GW4 and has since played
+            # 71, 87 and 90, read as 60 expected minutes; Barkley, who lost
+            # his in GW5 and has since played 6, 4 and 18, read as 57. Both
+            # errors are large and minutes scale almost the whole projection.
+            # See playtime.py for the fit.
+            exp_min = role["exp_min"] * _availability(e)
+            # `avg_min` has one other consumer below — the bonus model's
+            # "is this a normal week for him" ratio — and what that wants is
+            # his minutes WHEN HE PLAYS, which is exactly mins_if_start.
+            avg_min = role["mins_if_start"]
+        elif p60 is not None and mins > 0:
+            exp_min = (0.8 * avg_min + 0.2 * 90) if avg_min >= 70 else 0.85 * avg_min
+            exp_min = min(90.0, exp_min) * _availability(e)
             # Blend the heuristic with the learned start probability.
             #
             # The blend used to be computed into a variable the gameweek loop
@@ -324,6 +340,12 @@ def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
             cameo = min(18.0, avg_min)
             exp_min = 0.4 * exp_min + 0.6 * (p * 82 + (1 - p) * cameo)
             exp_min *= _availability(e)
+        else:
+            # No match log and no trained model: the season average is all
+            # there is.
+            exp_min = ((0.8 * avg_min + 0.2 * 90) if avg_min >= 70
+                       else 0.85 * avg_min)
+            exp_min = min(90.0, exp_min) * _availability(e)
         base_exp_min = exp_min
 
         # Shrink hard early in the season; trust observed rate more as minutes accrue.
