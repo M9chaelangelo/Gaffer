@@ -259,10 +259,52 @@ def team_strength(boot, prior_games=6.0, fixtures=None, form_weight=0.0,
             teamform.blend(season_dfn, fd, form_weight))
 
 
+def _scoring_rate(e, pos, mins, luck_weight):
+    """Points per 90, with finishing luck taken back out of the attack.
+
+    `total_points / 90` is what a player HAS scored, and most of the gap
+    between that and what his chances were worth is noise. Projecting it
+    forward forecasts the noise. Measured on 19 Oct 2026, three of the
+    manager's own players were the three largest overperformers in the game:
+
+        Groß        xGI 3.32, 9 involvements   +18.7 points, 32% of his total
+        Kostoulas   xGI 1.95, 7 involvements   +16.3 points, 40% of his total
+        João Pedro  xGI 3.36, 8 involvements   +15.9 points, 34% of his total
+
+    and Saka, on the second-highest expected involvement in the squad, was
+    -6.7 — so the engine wanted to sell him and buy them.
+
+    How much to take back out is not a guess. Splitting the season at GW4 and
+    correlating each player's over-performance per 90 across the two halves
+    gives r = +0.29 over the 69 players with real chance volume in both: some
+    finishing skill is real and persistent, but it explains under a tenth of
+    the variance. Keeping about that fraction of the observed gap, and
+    discarding the rest, is what `luck_weight` does at 0.7.
+
+    Only goals and assists are rebuilt. Bonus is left as scored even though it
+    correlates with them, so this under-corrects rather than over-corrects.
+    """
+    per90 = 90.0 / mins
+    realised = e["total_points"] * per90
+    if not luck_weight:
+        return realised
+    if "expected_goals" not in e or "goals_scored" not in e:
+        # No chance data, so there is no luck to take out. Correcting a number
+        # we cannot measure would be inventing one.
+        return realised
+    g = GOAL_POINTS[pos]
+    attack_scored = (float(e["goals_scored"] or 0) * g
+                     + float(e.get("assists") or 0) * 3) * per90
+    attack_expected = (float(e["expected_goals"] or 0) * g
+                       + float(e.get("expected_assists") or 0) * 3) * per90
+    underlying = realised - attack_scored + attack_expected
+    return (1 - luck_weight) * realised + luck_weight * underlying
+
+
 def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
           form_weight=0.30, strength_weight=0.5, minutes_mult=None,
           team_form_weight=0.0, team_form_half_life=2.5, market=None,
-          playtime_table=None):
+          playtime_table=None, luck_weight=0.7):
     teams = {t["id"]: t["short_name"] for t in boot["teams"]}
     # One change, felt everywhere: these two dicts drive the clean-sheet
     # lambdas, the ceiling model's input, and every player's fixture
@@ -350,7 +392,8 @@ def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
 
         # Shrink hard early in the season; trust observed rate more as minutes accrue.
         w = min(0.55, mins / 1200)
-        rate = (e["total_points"] / (mins / 90)) if mins >= 45 else _prior(price, pos)
+        rate = (_scoring_rate(e, pos, mins, luck_weight) if mins >= 45
+                else _prior(price, pos))
         base = w * rate + (1 - w) * _prior(price, pos)
 
         # Form. FPL's `form` field is points per match over the last 30 days.
