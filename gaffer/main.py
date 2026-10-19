@@ -534,16 +534,26 @@ def main():
 
         live_by_gw = {}
         preds = ledger.latest_predictions(led_dir, "fpl")
-        done = {r["gw"] for r in ledger.joined(led_dir, "fpl")}
-        for g in sorted({k[1] for k in preds if k[1] < gw} - done):
+        # "Earlier than the gameweek being solved" is not the same as
+        # "over". A Sunday-morning run for GW8 used to settle GW7 while
+        # GW7's Sunday fixtures were still to kick off, and the partial
+        # score then stood forever. The API says plainly which gameweeks
+        # are done, and `data_checked` is what makes bonus points final.
+        complete = {e["id"] for e in boot["events"]
+                    if e.get("finished") and e.get("data_checked")}
+        done = ledger.settled_finally(led_dir, "fpl")
+        for g in sorted({k[1] for k in preds if k[1] in complete} - done):
             ids = {k[2] for k in preds if k[1] == g}
             live = fetch.live(g) or {}
             live_by_gw[g] = live
             actual = {e["id"]: (e.get("stats") or {}).get("total_points", 0)
                       for e in live.get("elements", []) if e["id"] in ids}
             if actual:
-                ledger.settle(led_dir, "fpl", g, actual)
+                ledger.settle(led_dir, "fpl", g, actual, final=True)
                 print(f"  ledger: settled GW{g} ({len(actual)} players)")
+        waiting = sorted({k[1] for k in preds if k[1] < gw} - complete)
+        if waiting:
+            print(f"  ledger: GW{waiting} not finished yet — not scored")
 
         ledger.record_prices(led_dir, [
             {"id": i, "name": p.get("name"), "price": p.get("price"),
