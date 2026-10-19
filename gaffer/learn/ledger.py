@@ -80,13 +80,43 @@ def record(dirpath, game, gw, players, meta=None):
     return _append(os.path.join(dirpath, PREDICTIONS), rows)
 
 
-def settle(dirpath, game, gw, actuals):
-    """Write what happened. `actuals` maps player id to points scored."""
+def settle(dirpath, game, gw, actuals, final=True):
+    """Write what happened. `actuals` maps player id to points scored.
+
+    `final` says whether the gameweek was actually over. It exists because
+    it was not always asked: settlement used to fire for any gameweek
+    numerically earlier than the one being solved, so a Sunday-morning run
+    graded a gameweek whose Sunday fixtures had not kicked off. GW7 2026/27
+    was scored at 48 against a true 67, and since the gameweek then counted
+    as settled the wrong number was permanent — in the one file whose whole
+    job is to say honestly how good the model is.
+
+    Rows are append-only and `joined` takes the last one per player, so a
+    premature settlement is corrected by settling again rather than edited.
+    """
     now = datetime.now(timezone.utc).isoformat()
     rows = [{"game": game, "gw": int(gw), "player_id": int(pid),
-             "points": int(pts), "settled_at": now}
+             "points": int(pts), "settled_at": now, "final": bool(final)}
             for pid, pts in actuals.items()]
     return _append(os.path.join(dirpath, OUTCOMES), rows)
+
+
+def settled_finally(dirpath, game=None):
+    """Gameweeks whose outcomes were written after the gameweek ended.
+
+    Anything else is provisional and must be settled again. Rows written
+    before `final` existed have no such key and count as provisional,
+    which is the safe reading: they were written by the code that did not
+    check.
+    """
+    state = {}
+    for r in _read(os.path.join(dirpath, OUTCOMES)):
+        if game and r.get("game") != game:
+            continue
+        gw = r["gw"]
+        # Last write per gameweek decides, matching how `joined` reads points.
+        state[gw] = bool(r.get("final", False))
+    return {gw for gw, ok in state.items() if ok}
 
 
 def latest_predictions(dirpath, game=None):

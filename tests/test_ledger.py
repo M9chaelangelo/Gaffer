@@ -1,6 +1,8 @@
 """The prediction ledger — the engine's only way of being scored."""
 import tempfile
 
+import pytest
+
 from gaffer.learn import ledger
 
 
@@ -123,3 +125,44 @@ def test_a_player_without_a_price_is_skipped_not_recorded_as_zero():
     d = _dir()
     n = ledger.record_prices(d, [{"id": 1, "name": "A", "price": None}])
     assert n == 0
+
+
+def test_a_gameweek_is_not_scored_until_it_is_over(tmp_path):
+    """The bug: settlement fired for any gameweek numerically earlier than
+    the one being solved. A Sunday-morning GW8 run graded GW7 with GW7's
+    Sunday fixtures unplayed — 48 against a true 67 — and because the
+    gameweek then counted as settled, the wrong number was permanent in
+    the one file whose job is to say how good the model is.
+    """
+    d = str(tmp_path)
+    ledger.settle(d, "fpl", 7, {1: 5}, final=False)
+    assert ledger.settled_finally(d, "fpl") == set(), (
+        "a provisional score must not close the gameweek")
+
+    ledger.settle(d, "fpl", 7, {1: 12}, final=True)
+    assert ledger.settled_finally(d, "fpl") == {7}
+
+
+def test_rows_written_before_final_existed_count_as_provisional(tmp_path):
+    """They were written by the code that did not check, so re-score them."""
+    import json
+    import os
+
+    d = str(tmp_path)
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, ledger.OUTCOMES), "w") as f:
+        f.write(json.dumps({"game": "fpl", "gw": 7, "player_id": 1,
+                            "points": 48, "settled_at": "2026-10-18"}) + "\n")
+    assert ledger.settled_finally(d, "fpl") == set()
+
+
+def test_settling_again_corrects_the_points_rather_than_editing_history(tmp_path):
+    d = str(tmp_path)
+    ledger.record(d, "fpl", 7, [{"id": 1, "name": "A", "ep": 6.0,
+                                 "in_squad": True, "role": "xi"}])
+    ledger.settle(d, "fpl", 7, {1: 2}, final=False)      # mid-gameweek
+    ledger.settle(d, "fpl", 7, {1: 13}, final=True)      # after it ended
+    rows = ledger.joined(d, "fpl")
+    assert len(rows) == 1
+    assert rows[0]["actual"] == 13, "the last word wins, nothing is rewritten"
+    assert rows[0]["error"] == pytest.approx(7.0)
