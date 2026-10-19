@@ -79,6 +79,26 @@ rival_depth: 20
 # --- projections -------------------------------------------------------------
 solio_url: https://fpl.solioanalytics.com/api/data/latest.json
 solio_weight: 0.7         # trust Solio over the local model where both exist
+# --- expected minutes --------------------------------------------------------
+# Minutes scale almost the whole projection, so how they are estimated matters
+# more than any other single input. Measured off each player's own per-gameweek
+# match log rather than `season minutes / rounds played`, which charges a man
+# for weeks he was never in the squad for and credits him for weeks he no
+# longer plays. On 16-19 Oct 2026 that error had Barcola — 71, 87 and 90
+# minutes in his last three — at 60 expected minutes and 40th of 119
+# midfielders, and Barkley — 6, 4 and 18 — at 57.
+#
+# Set false to go back to the season average, which needs no match logs and so
+# works offline; the run says which one it used.
+minutes_recency: true
+# Half-life in gameweeks for the decay. Fitted by predicting each of gameweeks
+# 4-7 from the weeks before it; see playtime.py for the table. Shorter was
+# better at every horizon tested, all the way to the edge of the grid, so this
+# is deliberately a touch longer than the optimum: it keeps about three
+# quarters of the gain while averaging over more than a single match, so one
+# rotation does not rewrite a player's role and set the solver churning.
+minutes_half_life: 0.8
+
 # Weight on a PLAYER's recent form against his season rate.
 #
 # Lowered 0.30 -> 0.15 on 16 Oct 2026. FPL's `form` field is POINTS per match

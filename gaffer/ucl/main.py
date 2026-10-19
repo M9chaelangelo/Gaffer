@@ -19,8 +19,9 @@ from datetime import datetime, timezone
 
 import yaml
 
+from .. import fetch as fplfetch
 from .. import odds as oddsmod
-from . import fetch, plan, project
+from . import availability, fetch, history, plan, project
 
 SNAPSHOT = "gaffer/ucl/snapshot.json"
 CONFIG = "config/ucl.yaml"
@@ -106,6 +107,50 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
             r["forced_out"] = True
     unmatched_out = [n for n in forced_names if _match(pool, n) is None]
 
+    # Per-matchday minutes, differenced out of a log of past reads. Nothing to
+    # difference yet on the first matchday this runs for; it pays from the next.
+    #
+    # Only a LIVE read is recorded, the same rule write_snapshot follows. A
+    # replay of the committed snapshot carries no news about minutes, and the
+    # first version of this wrote on every run — so the test suite, which
+    # drives run() with a synthetic pool, filed 114 invented players under
+    # matchday 3 in the repository's own log. First-write-wins then kept the
+    # invention and would have differenced it at matchday 4.
+    mlog = history.load()
+    if source == "live":
+        mlog, _ = history.record(pool, matchday, log=mlog)
+    played = history.per_matchday(mlog, matchday - 1)
+    with_log = history.attach(pool, played)
+    minutes_note = (f"{with_log} players with per-match minutes from "
+                    f"{len(mlog)} recorded reads"
+                    if with_log else
+                    f"no per-match minutes yet — {len(mlog)} read(s) on file, "
+                    "two consecutive ones are needed; using each player's "
+                    "share of his club's minutes instead")
+
+    # Availability. UEFA's prose lags by a day or more, so for the English
+    # clubs FPL's numeric chance of playing is read instead, and `doubts:` in
+    # the config overrides both.
+    avail, avail_unmatched, avail_note = [], [], "not fetched"
+    doubts = dict(cfg.get("doubts") or {})
+    flags = {}
+    # `--offline` is about the UEFA feed, which is the thing that gets blocked;
+    # it deliberately does NOT suppress this. Re-solving against a committed
+    # snapshot with the injury flags silently dropped is how a comparison comes
+    # out saying to captain a man who is 75% to play, which is exactly the
+    # mistake this was written to stop. If FPL is unreachable too, the note
+    # says so and the plan carries on with UEFA's prose.
+    if cfg.get("use_fpl_flags", True):
+        try:
+            flags, avail_unmatched = availability.chances(
+                pool, fplfetch.bootstrap())
+            avail_note = f"{len(flags)} flagged by FPL"
+        except Exception as e:                              # noqa: BLE001
+            avail_note = f"FPL flags unreachable: {e.__class__.__name__}"
+    avail, doubts_unmatched = availability.apply(pool, flags, doubts)
+    if doubts:
+        avail_note += f"; {len(doubts)} from config"
+
     # Measured beats modelled. Configured odds win over the feed, the feed
     # wins over the strength model, and every fixture line says which it got.
     book = dict(cfg.get("odds") or {})
@@ -155,6 +200,12 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         "problems": problems,
         "missing_from_squad": missing,
         "unmatched_out": unmatched_out,
+        "availability": [{"name": n, "club": c, "chance": v, "source": src}
+                         for n, c, v, src in avail],
+        "availability_note": avail_note,
+        "minutes_note": minutes_note,
+        "availability_unmatched": avail_unmatched,
+        "doubts_unmatched": doubts_unmatched,
         "odds_note": note,
         "unpriced_fixtures": unpriced,
         "forced_out": sorted(forced),
@@ -315,6 +366,16 @@ def report(out, write=None):
         w("!! players you marked out were not matched in the feed: "
           + ", ".join(out["unmatched_out"]))
 
+    if out.get("doubts_unmatched"):
+        w("!! doubts you typed were not matched in the feed: "
+          + ", ".join(out["doubts_unmatched"]))
+    w(f"\nminutes: {out.get('minutes_note', 'not recorded')}")
+    w(f"availability: {out.get('availability_note', 'not fetched')}")
+    flagged = [a for a in (out.get("availability") or []) if a["chance"] < 1.0]
+    if flagged:
+        for a in sorted(flagged, key=lambda a: a["chance"]):
+            state = "OUT" if a["chance"] <= 0 else f"{a['chance']:.0%} chance"
+            w(f"  {a['name']:<20} {a['club']:<4} {state:<12} [{a['source']}]")
     w(f"\nodds: {out.get('odds_note', 'not fetched')}"
       + (f"  —  no price for: {', '.join(out['unpriced_fixtures'])}"
          if out.get("unpriced_fixtures") else ""))
