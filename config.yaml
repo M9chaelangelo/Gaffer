@@ -79,6 +79,28 @@ rival_depth: 20
 # --- projections -------------------------------------------------------------
 solio_url: https://fpl.solioanalytics.com/api/data/latest.json
 solio_weight: 0.7         # trust Solio over the local model where both exist
+# --- finishing luck -----------------------------------------------------------
+# How much of the gap between what a player HAS scored and what his chances
+# were worth to take back out before projecting him forward.
+#
+# The scoring base is points per 90, which embeds every bit of over- and
+# under-performance, and `form` then multiplies it by recent points — luck
+# squared. On 19 Oct 2026 the three biggest overperformers in the game were
+# all in this squad (Groß +18.7 points, Kostoulas +16.3, João Pedro +15.9,
+# between a third and two fifths of each man's total) while Saka, on the
+# squad's second-highest expected involvement, was -6.7. The engine was
+# reading that as "sell Saka, those three are great".
+#
+# 0.7 is measured, not picked. Splitting the season at GW4 and correlating
+# each player's over-performance per 90 across the halves gives r = +0.29
+# over the 69 players with real chance volume in both windows: finishing
+# skill is real and persistent, and explains under a tenth of the variance.
+# So roughly three quarters of an observed gap is noise and gets removed.
+#
+# 0 restores the old behaviour. 1.0 says finishing skill does not exist, which
+# the data above rejects, although it scored marginally better on raw MAE.
+luck_weight: 0.7
+
 # --- expected minutes --------------------------------------------------------
 # Minutes scale almost the whole projection, so how they are estimated matters
 # more than any other single input. Measured off each player's own per-gameweek

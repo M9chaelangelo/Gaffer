@@ -149,7 +149,8 @@ def main():
                              cfg.get("strength_weight", 0.5), mins_mult,
                              cfg.get("team_form_weight", 0.0),
                              cfg.get("team_form_half_life", 2.5),
-                             market=market, playtime_table=play)
+                             market=market, playtime_table=play,
+                             luck_weight=cfg.get("luck_weight", 0.7))
     if cfg.get("calibrate_to_solio", True):
         scale, n = calibrate.fit(proj, feed, gw)
         if n:
