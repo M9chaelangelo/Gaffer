@@ -42,14 +42,63 @@ SQUAD_COMPOSITION = {"GK": 2, "DEF": 5, "MID": 5, "FWD": 3}
 STARTING_SIZE = 11
 MIN_STARTING = {"GK": 1, "DEF": 3, "MID": 2, "FWD": 1}
 MAX_STARTING = {"GK": 1, "DEF": 5, "MID": 5, "FWD": 3}
-BUDGET = 100.0
-MAX_PER_CLUB = 3           # league phase; rises in the knockout rounds
+BUDGET = 100.0             # rises to 105.0 once the league phase is over
+BUDGET_KNOCKOUT = 105.0
+MAX_PER_CLUB = 3           # league phase only — see MAX_PER_CLUB_BY_MATCHDAY
+
+# The cap is not a constant. It doubles and more as the field narrows, which
+# is what makes a chip held back for the knockouts a different instrument from
+# one played now: in the final you may own eight players from one club.
+MAX_PER_CLUB_BY_MATCHDAY = {
+    **{md: 3 for md in range(1, 9)},     # league phase
+    9: 4, 10: 4,                         # knockout phase play-offs
+    11: 4, 12: 4,                        # round of 16
+    13: 5, 14: 5,                        # quarter-finals
+    15: 6, 16: 6,                        # semi-finals
+    17: 8,                               # final
+}
+
 CAPTAIN_MULTIPLIER = 2
 HAS_VICE_CAPTAIN = False
 
 FREE_TRANSFERS_PER_MATCHDAY = 2
 EXTRA_TRANSFER_COST = 4
-MAX_ROLLED_TRANSFERS = 1   # league phase only
+MAX_ROLLED_TRANSFERS = 1   # league phase only; nothing carries in the knockouts
+
+# Free transfers by matchday. The three `None` entries are unlimited, and they
+# are why the chips are blocked on exactly those matchdays: everybody already
+# has the transfers, so a Wildcard there would buy nothing.
+FREE_TRANSFERS_BY_MATCHDAY = {
+    1: None, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2,
+    9: None, 10: 2,
+    11: None, 12: 3,
+    13: 5, 14: 3,
+    15: 5, 16: 3,
+    17: 5,
+}
+
+# Chips cannot be played on these, for the reason above.
+CHIP_BLOCKED_MATCHDAYS = (1, 9, 11)
+
+# Every matchday is spread over two or more days, so the armband can be moved
+# and up to four players substituted — EXCEPT these two, where every match
+# kicks off at once. A chip played here loses the whole in-play option, which
+# is a large part of what the bench is worth.
+SIMULTANEOUS_MATCHDAYS = (8, 17)
+
+MAX_SUBS_PER_DAY = 4
+
+# Traps in the live rules that cost points rather than breaking a constraint:
+#
+#  - Any manual change at all — a substitution, a captain change, even
+#    reordering the bench — disables automatic substitutions for the REST of
+#    that matchday, and it cannot be undone by switching back.
+#  - If your captain then fails to play, he is NOT subbed out and NOBODY
+#    scores double. The armband is simply lost for the matchday.
+#
+# So the in-play flexibility this engine prices is not free: taking it forfeits
+# the safety net. Captain a nailed starter on the first day, or do nothing.
+MANUAL_CHANGE_DISABLES_AUTOSUBS = True
 
 
 # --- plugged into the shared engine ------------------------------------------
@@ -110,6 +159,6 @@ GAME = Game(
     armband_movable_midround=True,
     free_transfers_per_round=FREE_TRANSFERS_PER_MATCHDAY,
     extra_transfer_cost=EXTRA_TRANSFER_COST,
-    chips=("wc", "lim", "allin"),
+    chips=("wc", "lim"),
     score=score,
 )
