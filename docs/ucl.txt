@@ -1,56 +1,101 @@
 
-UCL matchday 3  —  live data, 2026-10-19T11:50Z
+UCL matchday 3  —  live data, 2026-10-20T11:10Z
+
+minutes: no per-match minutes yet — 1 read(s) on file, two consecutive ones are needed; using each player's share of his club's minutes instead
+availability: 42 flagged by FPL
+  H. Ekitiké           LIV  OUT          [fpl]
+  O. Watkins           AVL  OUT          [fpl]
+  G. Martinelli        ARS  OUT          [fpl]
+  C. Tzolis            ARS  OUT          [fpl]
+  D. Szoboszlai        LIV  OUT          [fpl]
+  A. Semenyo           MCI  OUT          [fpl]
+  B. Šeško             MUN  OUT          [fpl]
+  T. Reijnders         MCI  OUT          [fpl]
+  W. Saliba            ARS  OUT          [fpl]
+  P. Dorgu             MUN  OUT          [fpl]
+  C. Obi               MUN  OUT          [fpl]
+  A. Onana             AVL  OUT          [fpl]
+  J. Frimpong          LIV  OUT          [fpl]
+  L. Bailey            AVL  OUT          [fpl]
+  Fábio Vieira         ARS  OUT          [fpl]
+  P. Hincapié          ARS  OUT          [fpl]
+  S. Iling-Junior      AVL  OUT          [fpl]
+  C. Echeverri         MCI  OUT          [fpl]
+  I. Maatsen           AVL  OUT          [fpl]
+  G. Leoni             LIV  OUT          [fpl]
+  J. Monga             MCI  OUT          [fpl]
+  M. Ugarte            MUN  OUT          [fpl]
+  K. Phillips          MCI  OUT          [fpl]
+  S. Bajcetic          LIV  OUT          [fpl]
+  M. Ruggeri           AVL  OUT          [fpl]
+  C. Bradley           LIV  OUT          [fpl]
+  H. Elliott           LIV  OUT          [fpl]
+  Altay Bayındır       MUN  OUT          [fpl]
+  T. Heaton            MUN  OUT          [fpl]
+  V. Jaroš             LIV  OUT          [fpl]
+  K. Nedeljković       AVL  OUT          [fpl]
+  E. Haaland           MCI  75% chance   [fpl]
+  J. Manzambi          AVL  75% chance   [fpl]
+  M. Kovačić           MCI  75% chance   [fpl]
+  K. Mainoo            MUN  75% chance   [fpl]
+  G. Hemmings          AVL  75% chance   [fpl]
+  Matheus Nunes        MCI  75% chance   [fpl]
+  N. O’Reilly          MCI  75% chance   [fpl]
+  Lisandro Martínez    MUN  75% chance   [fpl]
+  L. Shaw              MUN  75% chance   [fpl]
+  A. Wan-Bissaka       AVL  75% chance   [fpl]
+  A. Wan-Bissaka       AVL  75% chance   [fpl]
 
 odds: 18 fixtures priced
 
 fixtures (kick-off order — the armband can move between days)
-  2026-10-20T18:45                   Sabah 0.91 - 2.63 B. Dortmund            [odds]
-  2026-10-20T18:45              Fenerbahçe 1.92 - 1.07 Slavia Praha           [odds]
-  2026-10-20T21:00                Man City 3.50 - 0.74 AEK Athens             [odds]
-  2026-10-20T21:00                   Paris 2.03 - 2.03 Barcelona              [odds]
-  2026-10-20T21:00               Stuttgart 1.29 - 1.63 Atleti                 [odds]
+  2026-10-20T18:45                   Sabah 0.86 - 2.55 B. Dortmund            [odds]
+  2026-10-20T18:45              Fenerbahçe 2.09 - 1.08 Slavia Praha           [odds]
+  2026-10-20T21:00                Man City 3.41 - 0.81 AEK Athens             [odds]
+  2026-10-20T21:00                   Paris 1.90 - 1.92 Barcelona              [odds]
+  2026-10-20T21:00               Stuttgart 1.30 - 1.69 Atleti                 [odds]
   2026-10-20T21:00               Liverpool 2.20 - 1.02 Villarreal             [odds]
-  2026-10-20T21:00                  Napoli 2.09 - 1.12 Bodø/Glimt             [odds]
-  2026-10-20T21:00                    Roma 3.05 - 0.78 S. Bratislava          [odds]
-  2026-10-20T21:00                   Porto 2.11 - 1.12 PSV                    [odds]
-  2026-10-21T18:45                    Como 1.55 - 1.34 Man Utd                [odds]
-  2026-10-21T18:45                   Lille 1.58 - 1.29 Galatasaray            [odds]
-  2026-10-21T21:00             Real Madrid 3.04 - 1.09 Leipzig                [odds]
-  2026-10-21T21:00          Bayern München 1.68 - 1.29 Arsenal                [odds]
-  2026-10-21T21:00                   Inter 2.99 - 0.87 Shakhtar               [odds]
-  2026-10-21T21:00             Aston Villa 2.78 - 0.87 Viking                 [odds]
-  2026-10-21T21:00             Sporting CP 2.96 - 0.94 LASK                   [odds]
-  2026-10-21T21:00             Club Brugge 1.77 - 1.37 Lens                   [odds]
-  2026-10-21T21:00              Real Betis 2.27 - 1.16 Feyenoord              [odds]
+  2026-10-20T21:00                  Napoli 1.84 - 1.10 Bodø/Glimt             [odds]
+  2026-10-20T21:00                    Roma 3.30 - 0.74 S. Bratislava          [odds]
+  2026-10-20T21:00                   Porto 2.13 - 1.03 PSV                    [odds]
+  2026-10-21T18:45                    Como 1.56 - 1.35 Man Utd                [odds]
+  2026-10-21T18:45                   Lille 1.58 - 1.30 Galatasaray            [odds]
+  2026-10-21T21:00             Real Madrid 3.05 - 1.08 Leipzig                [odds]
+  2026-10-21T21:00          Bayern München 1.67 - 1.26 Arsenal                [odds]
+  2026-10-21T21:00                   Inter 3.00 - 0.90 Shakhtar               [odds]
+  2026-10-21T21:00             Aston Villa 2.81 - 0.86 Viking                 [odds]
+  2026-10-21T21:00             Sporting CP 3.05 - 0.96 LASK                   [odds]
+  2026-10-21T21:00             Club Brugge 1.79 - 1.37 Lens                   [odds]
+  2026-10-21T21:00              Real Betis 2.25 - 1.20 Feyenoord              [odds]
 
-solver: Gap Limit (proved optimal)   spend 100.1 of 100.6
+solver: Gap Limit (proved optimal)   spend 100.6 of 100.6
 
 transfers
-  OUT K. Kvaratskhelia MID 10.0  3.45   ->   IN E. Haaland       FWD 11.1  7.54
-  OUT D. Undav         FWD  7.1  3.70   ->   IN R. Barkley       MID  5.5  6.10
+  OUT D. Undav         FWD  7.1  3.67   ->   IN D. Malen         FWD  6.5  6.69
+  OUT N. Brown         DEF  4.0  0.95   ->   IN Pau Torres       DEF  4.6  5.14
 
 starting eleven
-  GK   Z. Suzuki          Aston Villa         4.0  ep  4.05  blank  8.1%  haul  1.7%
-  DEF  M. Bartra          Real Betis          4.6  ep  5.97  blank  7.8%  haul 19.1%
-  DEF  Sergi Altimira     Sporting CP         4.0  ep  4.52  blank  7.7%  haul  5.2%
-  DEF  M. Mittelstädt     Stuttgart           4.5  ep  3.60  blank  8.2%  haul  2.5%
-  DEF  N. Brown           Bayern München      4.0  ep  3.50  blank 15.8%  haul  2.4%
-  MID  R. Barkley         Aston Villa         5.5  ep  6.10  blank  7.4%  haul 20.0%
-  MID  L. Yamal           Barcelona          10.1  ep  4.86  blank  7.6%  haul 11.2%
-  MID  Bruno Fernandes    Man Utd             9.0  ep  3.86  blank  7.9%  haul  5.3%
-  FWD  E. Haaland         Man City           11.1  ep  7.54  blank  7.4%  haul 33.3%
-  FWD  S. Guirassy        B. Dortmund         8.6  ep  6.30  blank  7.4%  haul 24.0%
-  FWD  H. Kane            Bayern München     11.0  ep  4.22  blank  7.6%  haul  9.2%
+  GK   Z. Suzuki          Aston Villa         4.0  ep  4.04  blank  8.8%  haul  1.7%
+  DEF  M. Bartra          Real Betis          4.6  ep  5.82  blank  8.8%  haul 18.6%
+  DEF  Pau Torres         Aston Villa         4.6  ep  5.14  blank  8.9%  haul 12.2%
+  DEF  Sergi Altimira     Sporting CP         4.0  ep  4.41  blank  8.9%  haul  5.0%
+  DEF  A. Hakimi          Paris               6.0  ep  3.01  blank 12.8%  haul  1.6%
+  DEF  M. Mittelstädt     Stuttgart           4.5  ep  1.84  blank 52.5%  haul  1.3%
+  MID  L. Yamal           Barcelona          10.1  ep  4.70  blank  8.7%  haul 10.4%
+  MID  Bruno Fernandes    Man Utd             9.0  ep  3.84  blank  8.9%  haul  5.5%
+  FWD  D. Malen           Roma                6.5  ep  6.69  blank  8.3%  haul 26.0%
+  FWD  S. Guirassy        B. Dortmund         8.6  ep  4.57  blank 31.6%  haul 17.2%
+  FWD  H. Kane            Bayern München     11.0  ep  4.16  blank  8.8%  haul  9.2%
 bench (auto-sub order)
-  1. DEF  A. Hakimi          Paris              ep  3.06
-  2. GK   F. Bredlow         Stuttgart          ep  2.07
+  1. GK   F. Bredlow         Stuttgart          ep  2.00
+  2. MID  K. Kvaratskhelia   Paris              ep  0.49
   3. MID  M. Olise           Bayern München     ep  0.00
   4. MID  R. Zalazar         Sporting CP        ep  0.00
 
 armband — captain, and the move you keep in hand
-  E. Haaland         2026-10-20  plain  7.54  with the move  9.06  (+1.52)  switch to R. Barkley if he blanks
-  S. Guirassy        2026-10-20  plain  6.30  with the move  8.16  (+1.86)  switch to R. Barkley if he blanks
-  L. Yamal           2026-10-20  plain  4.86  with the move  7.08  (+2.22)  switch to R. Barkley if he blanks
-  M. Mittelstädt     2026-10-20  plain  3.60  with the move  6.49  (+2.88)  switch to R. Barkley if he blanks
-  R. Barkley         2026-10-21  plain  6.10  with the move  6.10  (+0.00)  (last day — no move available)
-  M. Bartra          2026-10-21  plain  5.97  with the move  5.97  (+0.00)  (last day — no move available)
+  D. Malen           2026-10-20  plain  6.69  with the move  8.34  (+1.64)  switch to M. Bartra if he blanks
+  S. Guirassy        2026-10-20  plain  4.57  with the move  7.39  (+2.81)  switch to M. Bartra if he blanks
+  L. Yamal           2026-10-20  plain  4.70  with the move  6.82  (+2.12)  switch to M. Bartra if he blanks
+  A. Hakimi          2026-10-20  plain  3.01  with the move  6.11  (+3.10)  switch to M. Bartra if he blanks
+  M. Mittelstädt     2026-10-20  plain  1.84  with the move  6.03  (+4.20)  switch to M. Bartra if he blanks
+  M. Bartra          2026-10-21  plain  5.82  with the move  5.82  (+0.00)  (last day — no move available)
