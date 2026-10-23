@@ -161,8 +161,13 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         joined, unpriced = oddsmod.match_fixtures(fx, priced)
         for k, v in joined.items():
             book.setdefault(k, v)
+    # Expected goals typed straight off a published market card beat a
+    # devigged 1X2, which beats the strength model — and against the market
+    # the model runs 0.33 goals out, so this is worth the typing.
+    xg = dict(cfg.get("market_xg") or {})
+    xg_unmatched = project.unmatched_xg(xg, fx)
     samples, fxrates, played = project.simulate(pool, fx, odds=book, n=n,
-                                                with_minutes=True)
+                                                with_minutes=True, xg=xg)
     projected = project.summarise(pool, samples)
     columns = {r["id"]: j for j, r in enumerate(pool)}
 
@@ -233,6 +238,8 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         "availability_unmatched": avail_unmatched,
         "doubts_unmatched": doubts_unmatched,
         "odds_note": note,
+        "market_xg": len(xg),
+        "market_xg_unmatched": xg_unmatched,
         "unpriced_fixtures": unpriced,
         "forced_out": sorted(forced),
         "fixtures": fxrates,
@@ -428,6 +435,11 @@ def report(out, write=None):
         for a in sorted(flagged, key=lambda a: a["chance"]):
             state = "OUT" if a["chance"] <= 0 else f"{a['chance']:.0%} chance"
             w(f"  {a['name']:<20} {a['club']:<4} {state:<12} [{a['source']}]")
+    if out.get("market_xg_unmatched"):
+        w("!! market_xg entries matched no fixture: "
+          + ", ".join(out["market_xg_unmatched"]))
+    if out.get("market_xg"):
+        w(f"market xg: {out['market_xg']} fixtures typed in from a card")
     w(f"\nodds: {out.get('odds_note', 'not fetched')}"
       + (f"  —  no price for: {', '.join(out['unpriced_fixtures'])}"
          if out.get("unpriced_fixtures") else ""))

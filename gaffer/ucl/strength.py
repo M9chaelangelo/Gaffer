@@ -34,6 +34,27 @@ from scipy.optimize import minimize
 # settle it.
 PRIOR_GAMES = 6.0
 
+# The league mean is a FORECAST, and it was a realised rate.
+#
+# Matchdays 1 and 2 of 2026/27 produced 1.972 goals per team per game — 3.94
+# a game, which The Analyst makes the highest in a Champions League season
+# outside the 1950s. That is not a counting bug; those rounds really were
+# extraordinary. The bug was handing the number straight to matchday 3 as an
+# expectation. The sharp market's own forward view for matchday 3 averages
+# 1.783 per team: regression toward the long run, and not all the way to it.
+#
+# So the observed rate is shrunk toward last season's completed rate, which
+# UEFA put at 3.47 goals a game. The weight is not fitted to anything — it is
+# "the prior is worth as many team-games as you have actually seen", which
+# fades on its own: by matchday 8 the observation carries 288 team-games
+# against the prior's 72 and the prior is down to a fifth. Measured against
+# the market panel in tests/fixtures/ucl_market_md3.json, which nothing here
+# was fitted to, it takes the bias from +0.227 to +0.179 goals and the mean
+# error from 0.341 to 0.325, and the improvement is flat across weights from
+# 72 to 288 — so the dial is not doing the work, the direction is.
+MU_PRIOR = 3.47 / 2.0      # UEFA, 2025/26 league phase, per team per game
+MU_PRIOR_GAMES = 72        # one matchday is 36 team-games
+
 # Home advantage in the league phase, as a multiplier on the home side's goal
 # rate (and its reciprocal away). This one is an assumption, not a fit: the
 # feed carries season totals with no home/away split, so there is nothing in
@@ -106,7 +127,7 @@ def ratings(players):
         return {name: {"attack": 1.0, "defence": 1.0, "mu": 1.35, **t}
                 for name, t in teams.items()}, 1.35
 
-    mu = sum(t["scored"] for t in live) / sum(t["played"] for t in live)
+    mu = league_mean(live)
     mean_value = sum(t["value"] for t in live) / len(live)
     ratios = [t["value"] / mean_value if mean_value else 1.0 for t in live]
     att_obs = [t["scored"] / t["played"] for t in live]
@@ -133,6 +154,21 @@ def ratings(players):
             attack_goals=att, defence_goals=dfc,
             value_ratio=ratio)
     return out, mu
+
+
+def league_mean(live, prior=MU_PRIOR, prior_games=MU_PRIOR_GAMES):
+    """Goals per team per game, as a forecast rather than a record.
+
+    See MU_PRIOR. Passing `prior_games=0` gives the raw realised rate, which
+    is what this used to return.
+    """
+    games = sum(t["played"] for t in live)
+    if not games:
+        return prior
+    raw = sum(t["scored"] for t in live) / games
+    if not prior_games:
+        return raw
+    return (games * raw + prior_games * prior) / (games + prior_games)
 
 
 def _clamp(x):
