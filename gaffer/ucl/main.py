@@ -21,7 +21,8 @@ import yaml
 
 from .. import fetch as fplfetch
 from .. import odds as oddsmod
-from . import availability, fetch, history, plan, project
+from . import (availability, bench, fetch, history, plan, project,
+               schedule)
 
 SNAPSHOT = "gaffer/ucl/snapshot.json"
 CONFIG = "config/ucl.yaml"
@@ -160,7 +161,8 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         joined, unpriced = oddsmod.match_fixtures(fx, priced)
         for k, v in joined.items():
             book.setdefault(k, v)
-    samples, fxrates = project.simulate(pool, fx, odds=book, n=n)
+    samples, fxrates, played = project.simulate(pool, fx, odds=book, n=n,
+                                                with_minutes=True)
     projected = project.summarise(pool, samples)
     columns = {r["id"]: j for j, r in enumerate(pool)}
 
@@ -192,8 +194,32 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         banned=owned_ids_of(projected, cfg.get("banned") or []),
         time_limit=time_limit,
     )
-    band = plan.armband(result["xi"], samples, columns, fx)
+    # The bench and the armband are two prices on one thing: the right to
+    # change your mind during the matchday. Automatic substitutions cover an
+    # absent starter, and any manual change — the armband move included —
+    # switches them off for the rest of the matchday. So price the bench, and
+    # price the move net of the cover it gives up, rather than adding two
+    # numbers the rules make exclusive.
+    benched = bench.order(result["bench"]) if result["xi"] else []
+    result["bench"] = benched
+    days = sorted({(f.get("kickoff") or "")[:10] for f in fx if f.get("kickoff")})
+    if benched:
+        insurance = bench.value(result["xi"], benched, samples, played, columns)
+        costs = {d: bench.forfeit(result["xi"], benched, samples, played,
+                                  columns, fx, d) for d in days}
+    else:
+        insurance, costs = {"ep": 0.0, "by_slot": [], "expected_subs": 0.0}, {}
+    band = plan.armband(result["xi"], samples, columns, fx,
+                        switch_cost={d: c["most"] for d, c in costs.items()})
+
+    # The matchday in front of you is not the only one you are buying for.
+    # A Wildcard is a squad for the rest of the phase, and a club with a kind
+    # matchday four and a brutal five-to-eight is a club to hop on and hop
+    # off. The feed carries one matchday, so the schedule is committed.
     return {
+        "horizon": _horizon(matchday, pool),
+        "bench_value": insurance,
+        "autosub_forfeit": costs,
         "matchday": matchday,
         "generated": datetime.now(timezone.utc).isoformat(),
         "source": source,
@@ -214,6 +240,32 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         "armband": band,
         "projected": _worth_keeping(projected, owned["ids"]),
     }
+
+
+def _horizon(matchday, pool):
+    """Every club's remaining run, from the committed league-phase schedule.
+
+    Failures here are reported and survived. The horizon is useful and the
+    matchday plan does not depend on it, so a renamed club or a missing file
+    must not take the plan down with it.
+    """
+    out = {"matchdays": [], "problems": [], "clubs": [], "difficulty": {}}
+    try:
+        sched = schedule.load()
+        out["problems"] = schedule.validate(sched)
+        sched, unplaced = schedule.resolve(sched, {r["team"] for r in pool})
+        if unplaced:
+            out["problems"].append("not matched to the feed: "
+                                   + ", ".join(unplaced))
+        ahead = [md for md in schedule.MATCHDAYS if md >= matchday]
+        diff = schedule.difficulty(sched, pool, matchdays=ahead)
+        out["matchdays"] = ahead
+        out["difficulty"] = diff
+        out["clubs"] = schedule.summarise(diff, ahead)
+    except Exception as e:                              # noqa: BLE001
+        out["problems"].append(
+            f"the schedule could not be read: {e.__class__.__name__}: {e}")
+    return out
 
 
 # How much of the pool to carry in docs/ucl.json. The whole of it, pretty
@@ -419,15 +471,63 @@ def report(out, write=None):
     for r in sorted(p["xi"], key=lambda r: (order[r["pos"]], -r["ep"])):
         w(f"  {r['pos']:<4} {r['name']:<18} {r['team']:<18} {r['price']:>4.1f}"
           f"  ep {r['ep']:>5.2f}  blank {r['p_blank']:>5.1%}  haul {r['p_haul']:>5.1%}")
-    w("bench (auto-sub order)")
-    for i, r in enumerate(sorted(p["bench"], key=lambda r: -r["ep"]), 1):
-        w(f"  {i}. {r['pos']:<4} {r['name']:<18} {r['team']:<18} ep {r['ep']:>5.2f}")
+    bv = out.get("bench_value") or {}
+    w(f"bench (outfield in this order; the keeper sits in his own slot)   "
+      f"worth {bv.get('ep', 0.0):+.2f} points, "
+      f"{bv.get('expected_subs', 0.0):.2f} substitutions expected")
+    slots = {s["name"]: s for s in bv.get("by_slot") or []}
+    for i, r in enumerate(p["bench"], 1):
+        sl = slots.get(r["name"]) or {}
+        used = (f"  comes on {sl['p_used']:>5.1%} of the time, worth "
+                f"{sl['ep']:+.2f}" if sl else "")
+        w(f"  {i}. {r['pos']:<4} {r['name']:<18} {r['team']:<18} "
+          f"ep {r['ep']:>5.2f}{used}")
+
+    h = out.get("horizon") or {}
+    if h.get("problems"):
+        w("\n!! the league-phase schedule is not what this was written "
+          "against:")
+        for x in h["problems"]:
+            w("   - " + x)
+    if h.get("clubs") and len(h.get("matchdays") or []) > 1:
+        mine = {r["team"] for r in p["squad"]}
+        turn = {r["club"]: r["back_scored"] - r["front_scored"]
+                for r in h["clubs"]}
+        w("\nyour clubs over the rest of the phase "
+          f"(matchdays {h['matchdays'][0]}-{h['matchdays'][-1]})")
+        for r in sorted((r for r in h["clubs"] if r["club"] in mine),
+                        key=lambda r: -(r["back_scored"] - r["front_scored"])):
+            verdict = ("gets easier — buy later" if turn[r["club"]] > 0.25
+                       else "gets harder — sell into it"
+                       if turn[r["club"]] < -0.25 else "flat")
+            w(f"  {r['club']:<18} {r['scored']:>5.2f} goals, "
+              f"turn {turn[r['club']]:>+5.2f}  {verdict}")
+        w(schedule.table(h["difficulty"], h["matchdays"]))
 
     if out["armband"]:
         w("\narmband — captain, and the move you keep in hand")
+        w("  (moving it switches the auto-subs off for the rest of the "
+          "matchday, so the\n   gain below is already net of the cover "
+          "that costs)")
+        for d, c in sorted((out.get("autosub_forfeit") or {}).items()):
+            if c["most"] <= 0:
+                continue
+            # UEFA say auto-subs stop for "the rest of the matchday" without
+            # saying when they are applied. If they settle each day only the
+            # later matches lose cover; if they settle once at the end, the
+            # whole bench goes. Both bounds are printed and the larger is
+            # charged, because that is the one you cannot be wrong about.
+            w(f"   moving after {d} forfeits {c['least']:.2f}-"
+              f"{c['most']:.2f} points of cover "
+              f"({c['starters_after']} starters left to cover); "
+              f"charged at {c['most']:.2f}")
         for a in out["armband"][:6]:
             tag = (f"  switch to {a['fallback']['name']} if he blanks"
                    if a["fallback"] else "  (last day — no move available)")
+            if a["fallback"] and a["option_gain"] < 0.01:
+                tag = (f"  leave it alone — switching to "
+                       f"{a['fallback']['name']} does not cover the "
+                       f"{a['switch_cost']:.2f} it forfeits")
             w(f"  {a['player']['name']:<18} {a['day']}  plain {a['captain_ep']:>5.2f}"
               f"  with the move {a['armband_ep']:>5.2f}"
               f"  (+{a['option_gain']:.2f}){tag}")

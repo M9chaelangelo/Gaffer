@@ -6,7 +6,7 @@ import pytest
 
 from gaffer import games
 from gaffer.ucl import main as uclmain
-from gaffer.ucl import plan, project, strength
+from gaffer.ucl import bench, plan, project, strength
 from gaffer.ucl.rules import score
 
 
@@ -219,6 +219,66 @@ def test_a_locked_player_survives_a_transfer_plan_that_would_sell_him():
     out = plan.optimise(rows, owned_ids=owned, bank=50.0, locked=[keep],
                         time_limit=60)
     assert keep in {r["id"] for r in out["squad"]}
+
+
+def test_valuing_the_bench_does_not_wreck_the_eleven():
+    """The insurance is only worth buying if it is cheap, and the solver has
+    to see the trade: an eleven given away to afford a bench is a loss."""
+    rows, _, _ = _projected()
+    blind = plan.optimise(rows, bench_weight=0, time_limit=60)
+    priced = plan.optimise(rows, time_limit=60)
+    xi_ep = lambda out: sum(r["ep"] for r in out["xi"])
+    # Whatever the eleven gives up, the bench more than returns at the
+    # weight the solver was given.
+    lost = xi_ep(blind) - xi_ep(priced)
+    w = priced["bench_weight"]
+    gained = sum(r["ep"] * (w["GK"] if r["pos"] == "GK" else w["OUT"])
+                 for r in priced["bench"]) \
+        - sum(r["ep"] * (w["GK"] if r["pos"] == "GK" else w["OUT"])
+              for r in blind["bench"])
+    assert gained >= lost - 1e-6
+
+
+def test_the_bench_value_the_solver_assumes_is_close_to_the_simulated_one():
+    """The solver's bench term is a linear stand-in, one weight for three
+    slots, because it chooses the bench before it can order it. `bench.value`
+    replays the matchday and prices the real thing; the two must not be miles
+    apart, or the squad was bought on a number that does not exist."""
+    rows = _pool()
+    samples, _, played = project.simulate(rows, FIXTURES, n=6000,
+                                          with_minutes=True)
+    projected = project.summarise(rows, samples)
+    columns = {r["id"]: j for j, r in enumerate(rows)}
+    out = plan.optimise(projected, time_limit=60)
+    ordered = bench.order(out["bench"])
+    exact = bench.value(out["xi"], ordered, samples, played, columns)
+    w = out["bench_weight"]
+    assumed = sum(r["ep"] * (w["GK"] if r["pos"] == "GK" else w["OUT"])
+                  for r in ordered)
+    assert exact["ep"] > 0
+    assert abs(exact["ep"] - assumed) < 0.5 * max(exact["ep"], assumed)
+
+
+def test_switching_the_autosubs_off_costs_the_later_day_its_cover():
+    """Any manual change — the armband move included — disables automatic
+    substitutions for the rest of the matchday. So the armband option and
+    the bench are not additive, and `forfeit` is what the switch costs."""
+    rows = _pool()
+    samples, _, played = project.simulate(rows, FIXTURES, n=6000,
+                                          with_minutes=True)
+    projected = project.summarise(rows, samples)
+    columns = {r["id"]: j for j, r in enumerate(rows)}
+    out = plan.optimise(projected, time_limit=60)
+    ordered = bench.order(out["bench"])
+    days = sorted({(f.get("kickoff") or "")[:10] for f in FIXTURES})
+    cost = bench.forfeit(out["xi"], ordered, samples, played, columns,
+                         FIXTURES, days[0])
+    whole = bench.value(out["xi"], ordered, samples, played, columns)
+    assert 0 <= cost["least"] <= cost["most"] + 1e-9
+    assert abs(cost["most"] - whole["ep"]) < 1e-9
+    # Nothing is left to cover after the last day, so nothing is forfeited.
+    assert bench.forfeit(out["xi"], ordered, samples, played, columns,
+                         FIXTURES, days[-1])["least"] == 0.0
 
 
 # --- the armband -------------------------------------------------------------

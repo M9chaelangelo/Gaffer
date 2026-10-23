@@ -241,11 +241,18 @@ def fixture_rates(fixtures, players, odds=None):
     return out, rate, mu
 
 
-def simulate(players, fixtures, odds=None, n=N, seed=SEED):
+def simulate(players, fixtures, odds=None, n=N, seed=SEED,
+             with_minutes=False):
     """(n, len(players)) simulated points, plus the fixture rates used.
 
     Players whose club has no fixture this matchday score nothing — in UCL
     that is a real and common state, not an error.
+
+    `with_minutes` adds a third return value, the boolean (sample, player)
+    matrix of who took part. Points alone cannot stand in for it: a defender
+    who played, was booked and shipped four is on -1, and automatic
+    substitutions fire on minutes, not on points. It is off by default because
+    the matrix is the size of the points one and most callers do not want it.
     """
     rng = np.random.default_rng(seed)
     fx, rate, mu = fixture_rates(fixtures, players, odds)
@@ -259,6 +266,7 @@ def simulate(players, fixtures, odds=None, n=N, seed=SEED):
         by_team[f["away"]] = (key, False, f)
 
     out = np.zeros((n, len(players)))
+    on = np.zeros((n, len(players)), dtype=bool) if with_minutes else None
     for j, p in enumerate(players):
         slot = by_team.get(p["team"])
         if slot is None:
@@ -269,6 +277,8 @@ def simulate(players, fixtures, odds=None, n=N, seed=SEED):
 
         g90, a90, r90 = rates(p)
         played = rng.random(n) < start_prob(p)
+        if with_minutes:
+            on[:, j] = played
         full = played & (rng.random(n) < FULL_GIVEN_START)
         mins = np.where(full, 1.0, np.where(played, PART_MINUTES, 0.0))
 
@@ -297,7 +307,7 @@ def simulate(players, fixtures, odds=None, n=N, seed=SEED):
                                         0, 0.6)) & played
         pts += motm * PLAYER_OF_THE_MATCH
         out[:, j] = pts
-    return out, fx
+    return (out, fx, on) if with_minutes else (out, fx)
 
 
 def summarise(players, samples):
