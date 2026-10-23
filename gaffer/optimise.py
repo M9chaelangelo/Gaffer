@@ -4,6 +4,8 @@ Solves the whole horizon at once: which 15 to hold each week, who starts, who
 captains, when to spend a transfer, when a hit pays, and when to burn a chip.
 Solving week by week is what makes people take hits they regret.
 """
+import os
+
 import pulp
 
 from . import planner, solver, timing
@@ -123,8 +125,13 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
             # Bench Boost pays the bench the rest of the way to full value.
             obj.append(ep * (1 - bwt) * boost[(i, g)])
             # Triple Captain adds a third multiple of whoever you actually
-            # captain that week, not of the best player in the game.
-            obj.append(ep * rivalry_weight(i, pack_own, rivalry) * trip[(i, g)])
+            # captain that week, not of the best player in the game. `ep`
+            # already carries the rivalry weight from four lines up, so
+            # multiplying by it again here squared it — at rivalry 0.3 a
+            # player nobody in the pack owned was worth 1.69x on the Triple
+            # Captain term against 1.3x everywhere else, which is not a
+            # leverage tilt, it is a different objective for one chip.
+            obj.append(ep * trip[(i, g)])
             # …and it is chosen on the tail, not the mean. Tripling a player
             # only pays when he hauls: a 6.0 that goes double-digit one week in
             # five beats a 6.4 that never does, and expected points cannot tell
@@ -281,6 +288,20 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
             xi = [P[i] for i in pick["xi"]]
             bench = bench_order([P[i] for i in pick["bench"]], g)
         else:
+            if os.environ.get("GAFFER_DEBUG_XI") and g == gws[0]:
+                print(f"  [debug] GW{g} owned-player view, as the solver sees it")
+                for i in sorted(squad_ids, key=lambda i: -P[i]["ep"][g]
+                                if i in P else 0):
+                    if i not in P:
+                        print(f"    {i} NOT IN POOL")
+                        continue
+                    q = P[i]
+                    print(f"    {q['name'][:14]:<15}{q['pos']:<4}"
+                          f"ep {q['ep'][g]:>6.3f}  w "
+                          f"{rivalry_weight(i, pack_own, rivalry):>5.3f}"
+                          f"  bwt {bench_weight(q):>5.3f}"
+                          f"  x {x[(i, g)].value():>3.0f}  y {y[(i, g)].value():>3.0f}"
+                          f"  status {q['status']}  expmin {q['exp_min']:.0f}")
             xi = sorted([P[i] for i in P if y[(i, g)].value() > 0.5],
                         key=lambda p: (-p["ep"][g]))
             bench = bench_order([P[i] for i in P if x[(i, g)].value() > 0.5
