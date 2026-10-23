@@ -231,3 +231,192 @@ def test_build_survives_without_a_trained_ceiling(monkeypatch):
     for p in out.values():
         assert p["ceiling"] == {}
         assert p["ceiling_next"] is None
+
+
+# --- the probability has to be a probability ----------------------------
+#
+# AUC is a ranking metric, and the only test above was AUC. Over 82,075
+# player-gameweeks the model scored 0.85 and was over-confident by a factor
+# of nearly three in the only range anyone reads it in: the band it predicted
+# at 0.483 came in at 0.167. For GW8 it put Bruno Fernandes at 61.5%, the
+# highest of 668 players and five times the next, and the captaincy note
+# offered that to a manager who had asked for variance.
+
+
+def test_the_model_carries_the_calibration_it_was_fitted_with():
+    bundle = learn.load("ceiling")
+    assert bundle.get("calibrator") is not None, (
+        "models/ceiling.joblib predates calibration — retrain with "
+        "`python -m gaffer.learn ceiling`")
+
+
+def test_no_player_can_be_quoted_a_haul_rate_football_does_not_produce():
+    """The most anyone hauls is about a third of the time. The uncalibrated
+    model's ceiling was 0.636, and it reached 0.746 on an earlier fit."""
+    import numpy as np
+    bundle = learn.load("ceiling")
+    grid = np.linspace(0.0, 1.0, 201)
+    out = bundle["calibrator"].predict(grid)
+    assert out.max() <= 0.5
+    assert out.min() >= 0.0
+
+
+def test_calibration_cannot_reorder_two_players():
+    """Isotonic is monotone, which is the reason it was chosen: the ranking
+    AUC measures survives untouched while the level is corrected. A fix that
+    reordered players would be trading one error for another."""
+    import numpy as np
+    bundle = learn.load("ceiling")
+    grid = np.linspace(0.0, 1.0, 201)
+    out = bundle["calibrator"].predict(grid)
+    assert np.all(np.diff(out) >= -1e-12)
+
+
+def test_the_reliability_table_is_recorded_so_this_cannot_regress_quietly():
+    scores = json.load(open("models/scores.json", encoding="utf-8"))
+    c = scores["ceiling"]
+    assert c["reliability"], "no reliability table recorded"
+    assert c["predicted_max"] > 0
+    assert c["brier"] < c["brier_base_rate"], (
+        "the model is worse than quoting the base rate to everybody")
+    after = c["calibrated"]
+    assert after["brier"] <= c["brier"]
+    assert after["predicted_max"] < c["predicted_max"]
+    # Every band anyone acts on has to be within a quarter of the truth.
+    worst = after["worst_band"]
+    assert worst is None or abs(worst["actual"] / worst["predicted"] - 1) < 0.25
+
+
+def test_the_engine_reads_the_model_through_the_calibrated_path():
+    """`projections` must not take probabilities off the model itself: read
+    raw, this one says 61% where the truth is 20%.
+
+    The check is on the CALL, `predict_proba(X)`, and not on the name — the
+    bonus model is still tested for the attribute, by design, and a check on
+    the bare name fails on that and on a docstring.
+    """
+    import inspect
+    src = inspect.getsource(projections)
+    assert "learn.probability(" in src
+    assert "predict_proba(X)" not in src
+
+
+def test_reliability_bands_report_predicted_against_realised():
+    rel = learn.reliability([0, 0, 1, 1], [0.01, 0.03, 0.03, 0.5])
+    bands = {(b["from"], b["to"]): b for b in rel}
+    assert bands[(0.0, 0.02)]["rows"] == 1
+    assert bands[(0.02, 0.05)]["actual"] == 0.5
+    assert bands[(0.4, 0.6)]["actual"] == 1.0
+
+
+def test_the_worst_band_ignores_the_ones_nobody_acts_on():
+    """A 2% forecast that comes in at 4% is not a problem worth naming, and
+    three rows is not a rate."""
+    rel = [{"from": 0.0, "to": 0.02, "rows": 50000, "predicted": 0.004,
+            "actual": 0.02},
+           {"from": 0.1, "to": 0.2, "rows": 1000, "predicted": 0.13,
+            "actual": 0.10},
+           {"from": 0.6, "to": 1.01, "rows": 3, "predicted": 0.7,
+            "actual": 0.0}]
+    w = learn.worst_band(rel)
+    assert w["from"] == 0.1
+
+
+def test_probability_passes_a_bundle_without_a_calibrator_straight_through():
+    class Raw:
+        def predict_proba(self, X):
+            import numpy as np
+            return np.array([[0.4, 0.6], [0.9, 0.1]])
+    assert list(learn.probability({"model": Raw()}, None)) == [0.6, 0.1]
+
+
+def test_probability_applies_the_calibrator_and_clips_it():
+    class Raw:
+        def predict_proba(self, X):
+            import numpy as np
+            return np.array([[0.0, 0.6]])
+
+    class Silly:
+        def predict(self, p):
+            return p * 10          # deliberately out of range
+
+    out = learn.probability({"model": Raw(), "calibrator": Silly()}, None)
+    assert list(out) == [1.0]
+
+
+def test_the_top_of_the_curve_is_estimated_from_enough_rows():
+    """Isotonic puts a step wherever the data lets it, and the top step of a
+    rare-event model is fitted on a handful of rows. Held out properly, one
+    fold's curve mapped a prediction of 0.72 to 1.0 on the strength of four
+    rows, none of which hauled. The fix collapses everything above the
+    hundredth-largest prediction onto one input, so that step is a rate."""
+    bundle = learn.load("ceiling")
+    hi = bundle.get("calibrator_input_max")
+    assert hi is not None, "retrain: the curve has no input cap"
+    assert 0.0 < hi < 1.0
+    scores = json.load(open("models/scores.json", encoding="utf-8"))
+    assert scores["ceiling"]["calibrated"]["top_rows"] >= 100
+
+
+def test_a_prediction_past_the_cap_is_not_promised_more_than_the_cap():
+    import numpy as np
+    bundle = learn.load("ceiling")
+    hi = bundle["calibrator_input_max"]
+    at = learn.train._calibrated(bundle, np.array([hi]))
+    beyond = learn.train._calibrated(bundle, np.array([1.0]))
+    assert beyond[0] == pytest.approx(at[0])
+
+
+def test_a_bundle_with_no_calibration_is_left_exactly_as_it_is():
+    import numpy as np
+    raw = np.array([0.1, 0.9])
+    assert list(learn.train._calibrated({}, raw)) == [0.1, 0.9]
+
+
+def test_refitting_one_model_does_not_touch_another():
+    """`python -m gaffer.learn ceiling` has to leave the other nine alone, or
+    a one-model change moves every projection and nothing says which model
+    moved it."""
+    import pandas as pd
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    df = pd.DataFrame({"a": [0.0, 1.0, 0.0, 1.0], "y": [0, 1, 0, 1],
+                       "season": ["x"] * 4, "GW": [1, 2, 3, 4]})
+    score, rows = learn.train._fit(
+        HistGradientBoostingClassifier(max_iter=5), df, ["a"], "y",
+        "definitely_not_a_real_model", lambda y, m, X: 0.0,
+        only={"ceiling"})
+    assert rows == 0
+    import os
+    assert not os.path.exists("models/definitely_not_a_real_model.joblib")
+
+
+# --- what else is stale in models/ --------------------------------------
+
+
+def test_the_only_committed_model_that_no_longer_matches_training_is_bonus():
+    """A pinned finding, not a passing grade.
+
+    `models/bonus.joblib` is a six-feature REGRESSOR, from before the model
+    was rewritten as a classifier over the four bonus classes.
+    `projections._bonus_model` checks for predict_proba and returns None
+    without it, BY DESIGN — so the rewrite has never been in effect and the
+    engine has been using the bps90 heuristic the rewrite was meant to
+    replace. Nothing failed; it just quietly did not happen.
+
+    This test fails when bonus is refitted, which is the point: the fix is
+    `python -m gaffer.learn bonus`, and whoever runs it should come here and
+    delete the exception rather than leave a passing test that expects a
+    broken model.
+    """
+    stale = learn.audit()
+    assert set(stale) == {"bonus"}, (
+        "models/ no longer matches training for: "
+        + ", ".join(f"{k} ({v})" for k, v in stale.items()))
+
+
+def test_every_other_model_is_the_model_training_declares():
+    stale = learn.audit()
+    for name in learn.train.DECLARED:
+        if name == "bonus":
+            continue
+        assert name not in stale, f"{name}: {stale.get(name)}"
