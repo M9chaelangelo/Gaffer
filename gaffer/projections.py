@@ -207,6 +207,45 @@ def _availability(e):
     return 1.0 if c is None else c / 100.0
 
 
+def apply_club_bias(atk, dfn, codes, bias):
+    """A manager's own view of a club, applied on top of the measurement.
+
+    The model sees what FPL publishes, which is the Premier League and
+    nothing else. It cannot see a Champions League night, so a side winless
+    in seven across all competitions can still read as average. Being able to
+    say so is better than editing a number in a model and forgetting.
+
+    `bias` is {club code: {"attack": m, "defence": m}}; a defence multiplier
+    ABOVE one means they concede more, matching the convention everywhere
+    else. Missing keys are left alone.
+
+    This is NOT re-centred on the league. Re-centring would spread an opinion
+    about one club across the other nineteen, which is not what anyone means
+    by it; the cost is that the league mean moves by about three quarters of
+    a percent per club marked, and the clean-sheet lambdas drift by the same.
+    Returns what it changed, so the report can say it out loud — an
+    unreported override is indistinguishable from a model that agrees with
+    you.
+    """
+    changed = []
+    if not bias:
+        return atk, dfn, changed
+    by_code = {code: tid for tid, code in codes.items()}
+    atk, dfn = dict(atk), dict(dfn)
+    for code, adj in bias.items():
+        tid = by_code.get(code)
+        if tid is None:
+            changed.append((code, None, None, "no such club"))
+            continue
+        a = float((adj or {}).get("attack", 1.0))
+        d = float((adj or {}).get("defence", 1.0))
+        before = (atk.get(tid, 1.0), dfn.get(tid, 1.0))
+        atk[tid] = before[0] * a
+        dfn[tid] = before[1] * d
+        changed.append((code, (a, d), before, (atk[tid], dfn[tid])))
+    return atk, dfn, changed
+
+
 def team_strength(boot, prior_games=6.0, fixtures=None, form_weight=0.0,
                   half_life=2.5, form_prior=2.5):
     """Attack and defence strength from what teams have actually produced, not
@@ -305,14 +344,20 @@ def _scoring_rate(e, pos, mins, luck_weight):
 def build(boot, fixtures, gws, solio_feed=None, solio_weight=0.7,
           form_weight=0.30, strength_weight=0.5, minutes_mult=None,
           team_form_weight=0.0, team_form_half_life=2.5, market=None,
-          playtime_table=None, luck_weight=0.7):
+          playtime_table=None, luck_weight=0.7, club_bias=None):
     teams = {t["id"]: t["short_name"] for t in boot["teams"]}
     # One change, felt everywhere: these two dicts drive the clean-sheet
     # lambdas, the ceiling model's input, and every player's fixture
     # multiplier. Folding form in here beats bolting it onto each in turn.
+    #
+    # And it is why `club_bias` has to be applied HERE and not at the call
+    # site. `build` computes its own strengths, so biasing the copy main.py
+    # holds moved the number on the page and left every projection the solver
+    # reads exactly as it was — an override that looked applied and was not.
     atk, dfn = team_strength(boot, fixtures=fixtures,
                              form_weight=team_form_weight,
                              half_life=team_form_half_life)
+    atk, dfn, _ = apply_club_bias(atk, dfn, teams, club_bias)
     # Expected goals conceded per team per gameweek, calibrated against Solio.
     lams, _ = defence.lambdas(boot, fixtures, gws, atk, solio_feed,
                               market=market)
