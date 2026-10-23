@@ -94,7 +94,13 @@ def roll(rows_by_md, squad_ids, bank=0.0, ft_by_md=None, locked=(), banned=(),
         out = plan.optimise(rows_by_md[md], owned_ids=current, bank=bank,
                             free_transfers=ft, locked=locked, banned=banned,
                             time_limit=time_limit, bench_weight=bench_weight)
-        if not out["xi"]:
+        # `optimal`, not `xi`. After a failed solve CBC leaves whatever it
+        # last had in the variables, so an Infeasible model can hand back a
+        # populated fifteen and a legal-looking eleven — `report()` carries
+        # the same lesson from a live run that printed one. Which build of
+        # CBC you have decides whether the wreckage looks empty or looks
+        # like a plan: this test passed locally and failed on the runner.
+        if not out["optimal"] or not out["xi"]:
             legs.append({"matchday": md, "status": out["status"],
                          "worth": None})
             break
@@ -164,6 +170,12 @@ def limitless(rows_by_md, walk, banned=(), locked=(), time_limit=120):
             continue
         best = plan.optimise(rows, budget=UNLIMITED, banned=banned,
                              time_limit=time_limit)
+        if not best["optimal"]:
+            out[md] = {"matchday": md, "status": best["status"], "gain": None,
+                       "blocked": md in CHIP_BLOCKED_MATCHDAYS,
+                       "simultaneous": md in SIMULTANEOUS_MATCHDAYS,
+                       "optimal": False}
+            continue
         out[md] = {
             "matchday": md,
             "blocked": md in CHIP_BLOCKED_MATCHDAYS,
@@ -201,7 +213,7 @@ def wildcard(rows_by_md, walk, locked=(), banned=(),
             rows, _ep(window), owned_ids=squad_ids, bank=bank,
             free_transfers=None, locked=locked, banned=banned,
             time_limit=window_time_limit, prune=prune)
-        if not built["squad"]:
+        if not built["optimal"] or not built["squad"]:
             out[md] = {"matchday": md, "status": built["status"],
                        "gain": None}
             continue
