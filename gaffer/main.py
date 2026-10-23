@@ -8,7 +8,8 @@ from . import (cache, crowd, fetch, games, guards, imminent, league, matchup,
                odds,
                playtime, projections, prices, template,
                optimise, report, timing, styles, elite, explain, defence,
-               calibrate, rotation, planner, webdata, wildcard, teamform)
+               calibrate, rotation, planner, webdata, wildcard, teamform,
+               freshness)
 from .learn import ledger
 
 
@@ -679,8 +680,14 @@ def main():
                        for r in wc_draft["swaps"][:6]],
                })},
               open(os.path.join(cfg["out_dir"], "plan.json"), "w"), indent=1)
+    # What this solve believed about everyone it depends on. `gaffer.verify`
+    # re-reads the same flags before you act, because a plan solved in the
+    # morning is read at tea time and managers hold press conferences in
+    # between. See gaffer/freshness.py.
+    watch = freshness.decision_set({"weeks": weeks}, squad_ids)
     json.dump({"solved_gw": gw, "deadline": ev["deadline_time"],
-               "solved_at": datetime.now(timezone.utc).isoformat()},
+               "solved_at": datetime.now(timezone.utc).isoformat(),
+               "availability": freshness.fingerprint(boot, watch)},
               open(os.path.join(cfg["out_dir"], "state.json"), "w"), indent=1)
     print(f"wrote {out}; next deadline GW{gw} {deadline}")
 

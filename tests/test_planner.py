@@ -579,3 +579,37 @@ def test_a_bench_with_no_keeper_is_still_ordered():
     p = lambda name, pos, ep: {"name": name, "pos": pos, "ep": {8: ep}}
     out = optimise.bench_order([p("a", "DEF", 1.0), p("b", "MID", 5.0)], 8)
     assert [q["name"] for q in out] == ["b", "a"]
+
+
+# --- the leverage weight is applied once, not twice -------------------------
+
+def test_the_rivalry_weight_is_not_squared_on_the_triple_captain():
+    """`ep` already carries the weight before the chip terms are added, so
+    multiplying by it again gave the Triple Captain a different objective
+    from every other term: at rivalry 0.3 an unowned player was worth 1.69x
+    there against 1.3x as a starter."""
+    import inspect
+    from gaffer import optimise
+    src = inspect.getsource(optimise.plan)
+    body = src[src.index("obj = []"):src.index("# …and it is chosen on the tail")]
+    assert body.count("rivalry_weight(") == 1, (
+        "the weight should be folded into `ep` once and reused")
+    assert "obj.append(ep * trip[(i, g)])" in body
+
+
+def test_rivalry_weight_rewards_the_players_your_pack_does_not_own():
+    from gaffer import optimise
+    pack = {"owned": 1.0, "half": 0.5, "unique": 0.0}
+    w = lambda pid: optimise.rivalry_weight(pid, pack, 0.30)
+    assert w("owned") == pytest.approx(1.00)
+    assert w("half") == pytest.approx(1.15)
+    assert w("unique") == pytest.approx(1.30)
+    # A player nobody has been measured on is treated as a differential,
+    # which is the safe side: he is not in the pack's template.
+    assert w("never heard of him") == pytest.approx(1.30)
+
+
+def test_rivalry_zero_is_exactly_the_old_objective():
+    from gaffer import optimise
+    for own in (0.0, 0.5, 1.0):
+        assert optimise.rivalry_weight("x", {"x": own}, 0.0) == 1.0
