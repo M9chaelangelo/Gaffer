@@ -131,20 +131,55 @@ def _odds_for(odds, home, away):
     return _odds_for_named(odds, home, away)
 
 
-def _odds_for_named(odds, home, away):
-    """A configured 1X2 for this fixture, oriented home-first, or None."""
-    for key, v in (odds or {}).items():
+def _named(mapping, home, away):
+    """(value, was it written the other way round) for "Home v Away" keys."""
+    for key, v in (mapping or {}).items():
         parts = [s.strip().lower() for s in
                  re.split(r"\s+v(?:s)?\s+|\|", str(key)) if s.strip()]
         if len(parts) != 2:
             continue
         h, a = parts
         if h in home.lower() and a in away.lower():
-            return tuple(float(x) for x in v)
+            return v, False
         if h in away.lower() and a in home.lower():
-            ph, pdw, pa = (float(x) for x in v)
-            return (pa, pdw, ph)
-    return None
+            return v, True
+    return None, False
+
+
+def _odds_for_named(odds, home, away):
+    """A configured 1X2 for this fixture, oriented home-first, or None."""
+    v, flipped = _named(odds, home, away)
+    if v is None:
+        return None
+    ph, pdw, pa = (float(x) for x in v)
+    return (pa, pdw, ph) if flipped else (ph, pdw, pa)
+
+
+def market_xg(table, home, away):
+    """Expected goals typed straight in, oriented home-first, or None.
+
+    The published market cards — thefantasytool, FPL Schaden and the rest —
+    print the devigged expected goals for every fixture a day before the
+    deadline. That is the same quantity `lambdas_from_odds` works back to
+    from a 1X2, arrived at from more markets than three, so when someone has
+    gone to the trouble of typing it in it wins.
+
+    Written in config as `market_xg: {"Man City v AEK Athens": [3.3, 0.6]}`,
+    home side first. A fixture written the other way round is turned around
+    here rather than being silently wrong.
+    """
+    v, flipped = _named(table, home, away)
+    if v is None:
+        return None
+    a, b = (float(x) for x in v)
+    return (b, a) if flipped else (a, b)
+
+
+def unmatched_xg(table, fixtures):
+    """Keys in the table that match no fixture. Typos must not be silent."""
+    return [k for k in (table or {})
+            if not any(market_xg({k: v}, f["home"], f["away"])
+                       for v in [table[k]] for f in fixtures)]
 
 
 def rates(p):
@@ -225,13 +260,24 @@ def team_baselines(rate, mu):
     return out
 
 
-def fixture_rates(fixtures, players, odds=None):
-    """Goal rates per fixture, with the provenance of each."""
+def fixture_rates(fixtures, players, odds=None, xg=None):
+    """Goal rates per fixture, with the provenance of each.
+
+    Three sources, best first: expected goals typed in from a published
+    market card, a devigged 1X2, and the strength model. Measured beats
+    modelled, and every fixture line says which it got — scored against the
+    market, the model is at 0.33 goals mean error, so the difference is not
+    cosmetic.
+    """
     rate, mu = strength.ratings(players)
     out = []
     for f in fixtures:
-        book = _odds_for(odds, f["home"], f["away"])
-        if book:
+        direct = market_xg(xg, f["home"], f["away"])
+        book = None if direct else _odds_for(odds, f["home"], f["away"])
+        if direct:
+            lh, la = direct
+            src = "market xg"
+        elif book:
             lh, la = lambdas_from_odds(*book)
             src = "odds"
         else:
@@ -241,14 +287,15 @@ def fixture_rates(fixtures, players, odds=None):
     return out, rate, mu
 
 
-def simulate(players, fixtures, odds=None, n=N, seed=SEED):
+def simulate(players, fixtures, odds=None, n=N, seed=SEED,
+             xg=None):
     """(n, len(players)) simulated points, plus the fixture rates used.
 
     Players whose club has no fixture this matchday score nothing — in UCL
     that is a real and common state, not an error.
     """
     rng = np.random.default_rng(seed)
-    fx, rate, mu = fixture_rates(fixtures, players, odds)
+    fx, rate, mu = fixture_rates(fixtures, players, odds, xg)
     baseline = team_baselines(rate, mu)
 
     draws, by_team = {}, {}

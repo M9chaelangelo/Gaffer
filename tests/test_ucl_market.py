@@ -202,3 +202,66 @@ def test_the_engine_ranks_clean_sheets_the_way_the_market_does(market, pool):
     assert num / den > 0.85
     flat = sum(abs(a - ma) for a, _ in pairs) / len(pairs)
     assert _mae(pairs) < 0.6 * flat
+
+
+# --- typing the card in -----------------------------------------------------
+
+def test_expected_goals_typed_from_a_card_beat_the_model(market, pool):
+    """The whole point. Scored against the market the model is 0.33 goals
+    out; the card is the market, so a fixture with a card entry should come
+    back exactly as typed."""
+    from gaffer.ucl import project
+    f = market["fixtures"][3]
+    fx = [{"home": f["home"], "away": f["away"], "kickoff": "2026-10-20T20:00:00Z"}]
+    table = {f"{f['home']} v {f['away']}": [f["home_xg"], f["away_xg"]]}
+    rows, _, _ = project.fixture_rates(fx, pool, xg=table)
+    assert rows[0]["source"] == "market xg"
+    assert rows[0]["lh"] == pytest.approx(f["home_xg"])
+    assert rows[0]["la"] == pytest.approx(f["away_xg"])
+
+
+def test_a_fixture_typed_the_wrong_way_round_is_turned_around(market, pool):
+    from gaffer.ucl import project
+    f = market["fixtures"][3]
+    fx = [{"home": f["home"], "away": f["away"], "kickoff": "2026-10-20T20:00:00Z"}]
+    table = {f"{f['away']} v {f['home']}": [f["away_xg"], f["home_xg"]]}
+    rows, _, _ = project.fixture_rates(fx, pool, xg=table)
+    assert rows[0]["lh"] == pytest.approx(f["home_xg"])
+    assert rows[0]["la"] == pytest.approx(f["away_xg"])
+
+
+def test_a_fixture_with_no_card_entry_still_falls_back_to_the_model(market, pool):
+    from gaffer.ucl import project
+    fx = [{"home": f["home"], "away": f["away"],
+           "kickoff": "2026-10-20T20:00:00Z"} for f in market["fixtures"][:3]]
+    one = market["fixtures"][0]
+    table = {f"{one['home']} v {one['away']}": [one["home_xg"], one["away_xg"]]}
+    rows, _, _ = project.fixture_rates(fx, pool, xg=table)
+    assert [r["source"] for r in rows] == ["market xg", "model", "model"]
+
+
+def test_a_mistyped_fixture_name_is_reported_rather_than_ignored(market, pool):
+    """Silently dropping it would leave the model in charge of a fixture the
+    manager believes he has priced."""
+    from gaffer.ucl import project
+    fx = [{"home": f["home"], "away": f["away"],
+           "kickoff": "2026-10-20T20:00:00Z"} for f in market["fixtures"]]
+    table = {"Man Shitty v AEK Athens": [3.3, 0.6],
+             "Man City v AEK Athens": [3.3, 0.6]}
+    assert project.unmatched_xg(table, fx) == ["Man Shitty v AEK Athens"]
+
+
+def test_the_whole_card_drives_every_fixture_when_it_is_typed_in(market, pool):
+    """With all eighteen entered the engine reproduces the market exactly,
+    which is the error floor nothing else can reach."""
+    from gaffer.ucl import project
+    fx = [{"home": f["home"], "away": f["away"],
+           "kickoff": "2026-10-20T20:00:00Z"} for f in market["fixtures"]]
+    table = {f"{f['home']} v {f['away']}": [f["home_xg"], f["away_xg"]]
+             for f in market["fixtures"]}
+    assert project.unmatched_xg(table, fx) == []
+    rows, _, _ = project.fixture_rates(fx, pool, xg=table)
+    assert all(r["source"] == "market xg" for r in rows)
+    err = [abs(r["lh"] - f["home_xg"]) + abs(r["la"] - f["away_xg"])
+           for r, f in zip(rows, market["fixtures"])]
+    assert max(err) < 1e-9
