@@ -21,7 +21,7 @@ import yaml
 
 from .. import fetch as fplfetch
 from .. import odds as oddsmod
-from . import availability, fetch, history, plan, project
+from . import availability, bench, fetch, history, plan, project
 
 SNAPSHOT = "gaffer/ucl/snapshot.json"
 CONFIG = "config/ucl.yaml"
@@ -160,7 +160,8 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         joined, unpriced = oddsmod.match_fixtures(fx, priced)
         for k, v in joined.items():
             book.setdefault(k, v)
-    samples, fxrates = project.simulate(pool, fx, odds=book, n=n)
+    samples, fxrates, played = project.simulate(pool, fx, odds=book, n=n,
+                                                with_minutes=True)
     projected = project.summarise(pool, samples)
     columns = {r["id"]: j for j, r in enumerate(pool)}
 
@@ -192,8 +193,26 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         banned=owned_ids_of(projected, cfg.get("banned") or []),
         time_limit=time_limit,
     )
-    band = plan.armband(result["xi"], samples, columns, fx)
+    # The bench and the armband are two prices on one thing: the right to
+    # change your mind during the matchday. Automatic substitutions cover an
+    # absent starter, and any manual change — the armband move included —
+    # switches them off for the rest of the matchday. So price the bench, and
+    # price the move net of the cover it gives up, rather than adding two
+    # numbers the rules make exclusive.
+    benched = bench.order(result["bench"]) if result["xi"] else []
+    result["bench"] = benched
+    days = sorted({(f.get("kickoff") or "")[:10] for f in fx if f.get("kickoff")})
+    if benched:
+        insurance = bench.value(result["xi"], benched, samples, played, columns)
+        costs = {d: bench.forfeit(result["xi"], benched, samples, played,
+                                  columns, fx, d) for d in days}
+    else:
+        insurance, costs = {"ep": 0.0, "by_slot": [], "expected_subs": 0.0}, {}
+    band = plan.armband(result["xi"], samples, columns, fx,
+                        switch_cost={d: c["most"] for d, c in costs.items()})
     return {
+        "bench_value": insurance,
+        "autosub_forfeit": costs,
         "matchday": matchday,
         "generated": datetime.now(timezone.utc).isoformat(),
         "source": source,
@@ -419,15 +438,42 @@ def report(out, write=None):
     for r in sorted(p["xi"], key=lambda r: (order[r["pos"]], -r["ep"])):
         w(f"  {r['pos']:<4} {r['name']:<18} {r['team']:<18} {r['price']:>4.1f}"
           f"  ep {r['ep']:>5.2f}  blank {r['p_blank']:>5.1%}  haul {r['p_haul']:>5.1%}")
-    w("bench (auto-sub order)")
-    for i, r in enumerate(sorted(p["bench"], key=lambda r: -r["ep"]), 1):
-        w(f"  {i}. {r['pos']:<4} {r['name']:<18} {r['team']:<18} ep {r['ep']:>5.2f}")
+    bv = out.get("bench_value") or {}
+    w(f"bench (outfield in this order; the keeper sits in his own slot)   "
+      f"worth {bv.get('ep', 0.0):+.2f} points, "
+      f"{bv.get('expected_subs', 0.0):.2f} substitutions expected")
+    slots = {s["name"]: s for s in bv.get("by_slot") or []}
+    for i, r in enumerate(p["bench"], 1):
+        sl = slots.get(r["name"]) or {}
+        used = (f"  comes on {sl['p_used']:>5.1%} of the time, worth "
+                f"{sl['ep']:+.2f}" if sl else "")
+        w(f"  {i}. {r['pos']:<4} {r['name']:<18} {r['team']:<18} "
+          f"ep {r['ep']:>5.2f}{used}")
 
     if out["armband"]:
         w("\narmband — captain, and the move you keep in hand")
+        w("  (moving it switches the auto-subs off for the rest of the "
+          "matchday, so the\n   gain below is already net of the cover "
+          "that costs)")
+        for d, c in sorted((out.get("autosub_forfeit") or {}).items()):
+            if c["most"] <= 0:
+                continue
+            # UEFA say auto-subs stop for "the rest of the matchday" without
+            # saying when they are applied. If they settle each day only the
+            # later matches lose cover; if they settle once at the end, the
+            # whole bench goes. Both bounds are printed and the larger is
+            # charged, because that is the one you cannot be wrong about.
+            w(f"   moving after {d} forfeits {c['least']:.2f}-"
+              f"{c['most']:.2f} points of cover "
+              f"({c['starters_after']} starters left to cover); "
+              f"charged at {c['most']:.2f}")
         for a in out["armband"][:6]:
             tag = (f"  switch to {a['fallback']['name']} if he blanks"
                    if a["fallback"] else "  (last day — no move available)")
+            if a["fallback"] and a["option_gain"] < 0.01:
+                tag = (f"  leave it alone — switching to "
+                       f"{a['fallback']['name']} does not cover the "
+                       f"{a['switch_cost']:.2f} it forfeits")
             w(f"  {a['player']['name']:<18} {a['day']}  plain {a['captain_ep']:>5.2f}"
               f"  with the move {a['armband_ep']:>5.2f}"
               f"  (+{a['option_gain']:.2f}){tag}")

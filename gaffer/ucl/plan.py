@@ -25,6 +25,7 @@ import numpy as np
 import pulp
 
 from .. import solver
+from . import bench as benchmod
 from .rules import GAME
 
 
@@ -37,15 +38,8 @@ def squad_value(rows, owned_ids):
     return sum(rows[idx[i]]["price"] for i in owned_ids if i in idx)
 
 
-def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
-             max_extra_transfers=0, locked=(), banned=(), time_limit=120):
-    """Choose fifteen, start eleven, name a captain.
-
-    `rows` carry an `ep` each (see `project.summarise`). With `owned_ids`
-    empty this drafts a squad from scratch; with a squad it plans transfers
-    against it. `locked` are ids that must stay (a suspended player you
-    cannot sell for value, say); `banned` are ids that must not be bought.
-    """
+def _solve(rows, owned_ids, bank, free_transfers, max_extra_transfers,
+           locked, banned, time_limit, bench_w):
     g = GAME
     ft = g.free_transfers_per_round if free_transfers is None else free_transfers
     idx = _index(rows)
@@ -104,9 +98,19 @@ def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
     # exactly by `armband()` once the eleven is known. That re-pick can only
     # raise the total; what it cannot do is reach back and change the eleven,
     # and the error from that is second order.
+    #
+    # The bench is not scenery either. A starter who takes no part is replaced
+    # automatically, so the four men behind the eleven carry an expectation of
+    # their own: the chance their slot is called on, times what they score.
+    # Scoring them at zero bought the cheapest legal bodies, which is the one
+    # bench guaranteed to be worth nothing. `bench.weights` reads the
+    # coefficient off a real eleven rather than asserting one.
     ep = [float(r["ep"]) for r in rows]
+    bw = [bench_w["GK"] if rows[i]["pos"] == "GK" else bench_w["OUT"]
+          for i in P]
     m += (pulp.lpSum(ep[i] * xi[i] for i in P)
           + pulp.lpSum(ep[i] * (g.captain_multiplier - 1) * cap[i] for i in P)
+          + pulp.lpSum(ep[i] * bw[i] * (sq[i] - xi[i]) for i in P)
           - g.extra_transfer_cost * extra)
 
     # Ask CBC to prove optimality rather than stop at its build's default
@@ -136,7 +140,45 @@ def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
         "hits": int(round(extra.value() or 0)),
         "budget": budget,
         "spend": sum(rows[i]["price"] for i in chosen),
+        "bench_weight": dict(bench_w),
     }
+
+
+ZERO_BENCH = {"GK": 0.0, "OUT": 0.0}
+
+
+def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
+             max_extra_transfers=0, locked=(), banned=(), time_limit=120,
+             bench_weight=None):
+    """Choose fifteen, start eleven, name a captain.
+
+    `rows` carry an `ep` each (see `project.summarise`). With `owned_ids`
+    empty this drafts a squad from scratch; with a squad it plans transfers
+    against it. `locked` are ids that must stay (a suspended player you
+    cannot sell for value, say); `banned` are ids that must not be bought.
+
+    `bench_weight` is how much of a bench player's expectation counts, as
+    {"GK": w, "OUT": w} or one number for both. Left alone it is derived
+    rather than assumed: solve once with the bench at zero, then ask how
+    often THAT eleven would leave somebody out, which is the only thing the
+    weight depends on. Passing 0 reproduces the old eleven-only solve.
+    """
+    args = (rows, owned_ids, bank, free_transfers, max_extra_transfers,
+            locked, banned, time_limit)
+    first = _solve(*args, bench_w=ZERO_BENCH)
+    if isinstance(bench_weight, (int, float)):
+        bench_weight = {"GK": float(bench_weight), "OUT": float(bench_weight)}
+    if bench_weight is None:
+        if not first["xi"]:
+            return first                  # infeasible; nothing to read it off
+        w = benchmod.weights(first["xi"])
+        bench_weight = {"GK": w["GK"], "OUT": w["OUT"]}
+    if max(bench_weight.values()) <= 0:
+        return first
+    out = _solve(*args, bench_w=bench_weight)
+    # A second solve that fails where the first succeeded is a solver
+    # problem, not a plan: keep the one that worked.
+    return out if out["xi"] else first
 
 
 # --- the armband -------------------------------------------------------------
@@ -149,12 +191,21 @@ def day_of(player, fixtures):
     return None
 
 
-def armband(xi_rows, samples, columns, fixtures):
+def armband(xi_rows, samples, columns, fixtures, switch_cost=None):
     """Best captain, pricing the mid-matchday move.
 
     `columns` maps a player id to its column in `samples`. Returns one entry
     per candidate, best first, each carrying the plain captaincy value and
     the value with the option to switch to the best later-day fallback.
+
+    `switch_cost` is what moving the armband costs, as one number or a
+    mapping from the day you would move it on. It is not zero: any manual
+    change disables automatic substitutions for the rest of the matchday, so
+    moving the armband after Tuesday means nobody covers an absent Wednesday
+    starter. That changes the rule, not just the total — you keep the armband
+    unless the fallback beats it by MORE than the cover you are giving up —
+    which is why the cost belongs in here and not in a subtraction afterwards.
+    See `bench.forfeit`.
     """
     days = {r["id"]: day_of(r, fixtures) for r in xi_rows}
     playing = [r for r in xi_rows if days[r["id"]]]
@@ -165,6 +216,7 @@ def armband(xi_rows, samples, columns, fixtures):
     out = []
     for r in playing:
         d = days[r["id"]]
+        cost = _cost(switch_cost, d)
         later = [q for q in playing
                  if days[q["id"]] and days[q["id"]] > d]
         fallback = max(later, key=lambda q: q["ep"], default=None)
@@ -173,9 +225,10 @@ def armband(xi_rows, samples, columns, fixtures):
             val, gain = float(s.mean()), 0.0
         else:
             # Keep the armband when the Tuesday score already beats what the
-            # Wednesday man is worth; otherwise move it. The expectation of
-            # that rule is the captaincy's true value.
-            f_ep = float(fallback["ep"])
+            # Wednesday man is worth NET of the cover the switch forfeits;
+            # otherwise move it. The expectation of that rule is the
+            # captaincy's true value.
+            f_ep = float(fallback["ep"]) - cost
             val = float(np.maximum(s, f_ep).mean())
             gain = val - float(s.mean())
         out.append({
@@ -183,6 +236,15 @@ def armband(xi_rows, samples, columns, fixtures):
             "captain_ep": float(s.mean()),
             "armband_ep": val,
             "option_gain": gain,
+            "switch_cost": cost,
             "fallback": fallback,
         })
     return sorted(out, key=lambda x: -x["armband_ep"])
+
+
+def _cost(switch_cost, day):
+    if switch_cost is None:
+        return 0.0
+    if isinstance(switch_cost, (int, float)):
+        return float(switch_cost)
+    return float(switch_cost.get(day, 0.0))
