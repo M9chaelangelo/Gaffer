@@ -174,7 +174,7 @@ def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
     if isinstance(bench_weight, (int, float)):
         bench_weight = {"GK": float(bench_weight), "OUT": float(bench_weight)}
     if bench_weight is None:
-        if not first["xi"]:
+        if not first["optimal"] or not first["xi"]:
             return first                  # infeasible; nothing to read it off
         w = benchmod.weights(first["xi"])
         bench_weight = {"GK": w["GK"], "OUT": w["OUT"]}
@@ -182,8 +182,10 @@ def optimise(rows, owned_ids=(), bank=0.0, free_transfers=None,
         return first
     out = _solve(*args, bench_w=bench_weight, budget=budget)
     # A second solve that fails where the first succeeded is a solver
-    # problem, not a plan: keep the one that worked.
-    return out if out["xi"] else first
+    # problem, not a plan: keep the one that worked. Judged on `optimal`,
+    # because a failed solve leaves CBC's last values in the variables, so a
+    # non-empty `xi` is not evidence that anything was solved.
+    return out if out["optimal"] else first
 
 
 # --- the armband -------------------------------------------------------------
@@ -314,7 +316,7 @@ def optimise_window(rows, ep_by_md, owned_ids=(), bank=0.0,
         bench_weight = {"GK": float(bench_weight), "OUT": float(bench_weight)}
     if bench_weight is None:
         xi = first["xi"].get(mds[0]) if first["xi"] else None
-        if not xi:
+        if not first["optimal"] or not xi:
             return first
         w = benchmod.weights(xi)
         bench_weight = {"GK": w["GK"], "OUT": w["OUT"]}
@@ -323,7 +325,7 @@ def optimise_window(rows, ep_by_md, owned_ids=(), bank=0.0,
     out = _window_solve(rows, P, ep, mds, owned, lock, ban, bank,
                         free_transfers, max_extra_transfers, time_limit,
                         bench_weight)
-    return out if out["xi"] else first
+    return out if out["optimal"] else first
 
 
 def _window_solve(rows, P, ep, mds, owned, lock, ban, bank, free_transfers,
