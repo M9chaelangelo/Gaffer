@@ -547,3 +547,35 @@ def test_reconcile_chips_finds_the_one_you_forgot_to_declare():
     assert missing == () and surplus == ("wc",)
 
     assert reconcile_chips(("tc",), ("tc",)) == ((), ())
+
+
+# --- the bench is ordered, because the order is a decision ------------------
+
+def test_the_bench_comes_out_best_first_with_the_keeper_in_his_own_slot():
+    """The eleven came out of the solver sorted and the bench came out in
+    whatever order the pool happened to be in, after which `webdata` numbered
+    those positions and called them "the order the game substitutes them in".
+    For GW8 that put Thomas at 3.84 behind Kostoulas at 2.72."""
+    from gaffer import optimise
+    p = lambda name, pos, ep: {"name": name, "pos": pos, "ep": {8: ep}}
+    bench = [p("Kostoulas", "FWD", 2.72), p("Thomas", "DEF", 3.84),
+             p("Leno", "GKP", 4.07), p("Janelt", "MID", 0.0)]
+    out = optimise.bench_order(bench, 8)
+    assert [q["name"] for q in out] == ["Leno", "Thomas", "Kostoulas", "Janelt"]
+
+
+def test_the_reserve_keeper_is_not_ranked_against_the_outfielders():
+    """He has his own slot, he is the only man who can replace the starting
+    keeper, and he can replace nobody else."""
+    from gaffer import optimise
+    p = lambda name, pos, ep: {"name": name, "pos": pos, "ep": {8: ep}}
+    out = optimise.bench_order([p("Striker", "FWD", 9.0),
+                                p("Keeper", "GKP", 1.0)], 8)
+    assert [q["name"] for q in out] == ["Keeper", "Striker"]
+
+
+def test_a_bench_with_no_keeper_is_still_ordered():
+    from gaffer import optimise
+    p = lambda name, pos, ep: {"name": name, "pos": pos, "ep": {8: ep}}
+    out = optimise.bench_order([p("a", "DEF", 1.0), p("b", "MID", 5.0)], 8)
+    assert [q["name"] for q in out] == ["b", "a"]

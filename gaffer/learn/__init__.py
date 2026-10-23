@@ -10,7 +10,8 @@ learn; learn.load("minutes")` keeps working from the modules that have
 always called it that way.
 """
 from . import ledger, train           # noqa: F401
-from .train import expected_bonus, load, MODELS   # noqa: F401
+from .train import (audit, expected_bonus, load, MODELS,  # noqa: F401
+                    probability, reliability, worst_band)
 
 
 def __getattr__(name):

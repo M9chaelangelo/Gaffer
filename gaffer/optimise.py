@@ -29,6 +29,25 @@ def rivalry_weight(pid, pack_own, rivalry):
     return 1.0 + rivalry * (1.0 - pack_own.get(pid, 0.0))
 
 
+def bench_order(bench, gw):
+    """The order the game substitutes them in, which is a decision.
+
+    The eleven came out of the solver sorted; the bench came out in whatever
+    order the pool happened to be in, and `webdata` then numbered those
+    positions and labelled them "the order the game substitutes them in".
+    For GW8 that put Thomas at 3.84 behind Kostoulas at 2.72, so a blanking
+    defender would have been replaced by the worse player.
+
+    The keeper is listed first and not ranked: he has his own slot on the
+    site, he is the only man who can replace the starting keeper, and he can
+    replace nobody else — so his place among the outfielders is not a choice
+    anyone gets to make.
+    """
+    gk = [p for p in bench if p["pos"] == "GKP"]
+    out = [p for p in bench if p["pos"] != "GKP"]
+    return gk + sorted(out, key=lambda p: -p["ep"][gw])
+
+
 def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
          pack_own=None, chips_available=None,
          force_no_transfer_gws=(), force_wc_gw=None, calendar=None,
@@ -260,12 +279,12 @@ def plan(proj, squad_ids, sell, bank, gws, free_transfers, cfg,
             # if the chip is not played after all.
             pick = planner.best_xi(squad_g, P, g)
             xi = [P[i] for i in pick["xi"]]
-            bench = [P[i] for i in pick["bench"]]
+            bench = bench_order([P[i] for i in pick["bench"]], g)
         else:
             xi = sorted([P[i] for i in P if y[(i, g)].value() > 0.5],
                         key=lambda p: (-p["ep"][g]))
-            bench = [P[i] for i in P if x[(i, g)].value() > 0.5
-                     and y[(i, g)].value() < 0.5]
+            bench = bench_order([P[i] for i in P if x[(i, g)].value() > 0.5
+                                 and y[(i, g)].value() < 0.5], g)
         # Carry the players themselves, not their names. Two players can share
         # a web name (there are two Palmers), and pairing a wildcard's thirteen
         # moves by list order produces nonsense like a midfielder "replacing" a
