@@ -120,8 +120,38 @@ def test_a_matchday_the_solver_cannot_finish_stops_the_roll():
     every_keeper = [r["id"] for r in by_md[1] if r["pos"] == "GK"]
     w = sweep.roll(by_md, start, bank=60.0, banned=every_keeper,
                    time_limit=30)
+    assert w["legs"] and w["legs"][0]["status"] != "Optimal"
     assert not w["complete"]
-    assert w["legs"] and w["legs"][0]["worth"] is None
+    assert w["legs"][0]["worth"] is None
+
+
+def test_a_failed_solve_is_not_a_plan_however_full_its_variables_look():
+    """The regression, pinned without needing a particular CBC.
+
+    After a failed solve CBC leaves whatever it last had in the variables,
+    so an Infeasible model can hand back a populated fifteen and a
+    legal-looking eleven. Which build you have decides whether the wreckage
+    reads as empty or as a plan — the banned-keepers test above passed here
+    and failed on the runner for exactly that reason. The roll has to judge
+    on `optimal`, not on whether a list came back non-empty.
+    """
+    by_md = _by_md({1: {}, 2: {}})
+    start = _cheap_squad(by_md[1])
+    real = sweep.plan.optimise
+
+    def wreckage(*a, **kw):
+        out = real(*a, **kw)
+        # Everything a successful solve has, except that it did not succeed.
+        return dict(out, status="Infeasible", optimal=False)
+
+    sweep.plan.optimise = wreckage
+    try:
+        w = sweep.roll(by_md, start, bank=60.0, time_limit=30)
+    finally:
+        sweep.plan.optimise = real
+    assert not w["complete"]
+    assert w["total"] == 0.0
+    assert len(w["legs"]) == 1 and w["legs"][0]["worth"] is None
 
 
 def test_an_unknown_squad_id_is_not_quietly_read_as_a_draft():
