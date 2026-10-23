@@ -39,8 +39,7 @@ def _minutes_model(boot, played):
                      "roll_total_points": e["total_points"] / played})
         ids.append(e["id"])
     X = pd.DataFrame(rows)[bundle["features"]].astype(float)
-    p = bundle["model"].predict_proba(X)[:, 1]
-    return dict(zip(ids, p))
+    return dict(zip(ids, learn.probability(bundle, X)))
 
 
 def _ceiling_model(boot, played, fx, lams, gws):
@@ -102,7 +101,9 @@ def _ceiling_model(boot, played, fx, lams, gws):
         return None
 
     X = pd.DataFrame(rows)[bundle["features"]].astype(float)
-    probs = bundle["model"].predict_proba(X)[:, 1]
+    # Through `learn.probability`, so the isotonic map trained with the model
+    # is applied. Read raw, this model says 61% where the truth is 20%.
+    probs = learn.probability(bundle, X)
 
     out = {}
     for (pid, g), pr in zip(keys, probs):
