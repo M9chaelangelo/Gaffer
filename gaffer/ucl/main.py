@@ -21,7 +21,8 @@ import yaml
 
 from .. import fetch as fplfetch
 from .. import odds as oddsmod
-from . import availability, bench, fetch, history, plan, project
+from . import (availability, bench, fetch, history, plan, project,
+               schedule)
 
 SNAPSHOT = "gaffer/ucl/snapshot.json"
 CONFIG = "config/ucl.yaml"
@@ -210,7 +211,13 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         insurance, costs = {"ep": 0.0, "by_slot": [], "expected_subs": 0.0}, {}
     band = plan.armband(result["xi"], samples, columns, fx,
                         switch_cost={d: c["most"] for d, c in costs.items()})
+
+    # The matchday in front of you is not the only one you are buying for.
+    # A Wildcard is a squad for the rest of the phase, and a club with a kind
+    # matchday four and a brutal five-to-eight is a club to hop on and hop
+    # off. The feed carries one matchday, so the schedule is committed.
     return {
+        "horizon": _horizon(matchday, pool),
         "bench_value": insurance,
         "autosub_forfeit": costs,
         "matchday": matchday,
@@ -233,6 +240,32 @@ def run(matchday, cfg, offline=False, n=project.N, time_limit=180):
         "armband": band,
         "projected": _worth_keeping(projected, owned["ids"]),
     }
+
+
+def _horizon(matchday, pool):
+    """Every club's remaining run, from the committed league-phase schedule.
+
+    Failures here are reported and survived. The horizon is useful and the
+    matchday plan does not depend on it, so a renamed club or a missing file
+    must not take the plan down with it.
+    """
+    out = {"matchdays": [], "problems": [], "clubs": [], "difficulty": {}}
+    try:
+        sched = schedule.load()
+        out["problems"] = schedule.validate(sched)
+        sched, unplaced = schedule.resolve(sched, {r["team"] for r in pool})
+        if unplaced:
+            out["problems"].append("not matched to the feed: "
+                                   + ", ".join(unplaced))
+        ahead = [md for md in schedule.MATCHDAYS if md >= matchday]
+        diff = schedule.difficulty(sched, pool, matchdays=ahead)
+        out["matchdays"] = ahead
+        out["difficulty"] = diff
+        out["clubs"] = schedule.summarise(diff, ahead)
+    except Exception as e:                              # noqa: BLE001
+        out["problems"].append(
+            f"the schedule could not be read: {e.__class__.__name__}: {e}")
+    return out
 
 
 # How much of the pool to carry in docs/ucl.json. The whole of it, pretty
@@ -449,6 +482,27 @@ def report(out, write=None):
                 f"{sl['ep']:+.2f}" if sl else "")
         w(f"  {i}. {r['pos']:<4} {r['name']:<18} {r['team']:<18} "
           f"ep {r['ep']:>5.2f}{used}")
+
+    h = out.get("horizon") or {}
+    if h.get("problems"):
+        w("\n!! the league-phase schedule is not what this was written "
+          "against:")
+        for x in h["problems"]:
+            w("   - " + x)
+    if h.get("clubs") and len(h.get("matchdays") or []) > 1:
+        mine = {r["team"] for r in p["squad"]}
+        turn = {r["club"]: r["back_scored"] - r["front_scored"]
+                for r in h["clubs"]}
+        w("\nyour clubs over the rest of the phase "
+          f"(matchdays {h['matchdays'][0]}-{h['matchdays'][-1]})")
+        for r in sorted((r for r in h["clubs"] if r["club"] in mine),
+                        key=lambda r: -(r["back_scored"] - r["front_scored"])):
+            verdict = ("gets easier — buy later" if turn[r["club"]] > 0.25
+                       else "gets harder — sell into it"
+                       if turn[r["club"]] < -0.25 else "flat")
+            w(f"  {r['club']:<18} {r['scored']:>5.2f} goals, "
+              f"turn {turn[r['club']]:>+5.2f}  {verdict}")
+        w(schedule.table(h["difficulty"], h["matchdays"]))
 
     if out["armband"]:
         w("\narmband — captain, and the move you keep in hand")
