@@ -20,7 +20,119 @@
   "metric": "AUC",
   "value": 0.849,
   "rows": 82075,
-  "target": "P(10+ points next gameweek)"
+  "target": "P(10+ points next gameweek)",
+  "rows_scored": 82075,
+  "brier": 0.01648,
+  "brier_base_rate": 0.0169,
+  "predicted_max": 0.896,
+  "reliability": [
+   {
+    "from": 0.0,
+    "to": 0.02,
+    "rows": 58830,
+    "predicted": 0.0035,
+    "actual": 0.0045
+   },
+   {
+    "from": 0.02,
+    "to": 0.05,
+    "rows": 16264,
+    "predicted": 0.0316,
+    "actual": 0.0352
+   },
+   {
+    "from": 0.05,
+    "to": 0.1,
+    "rows": 5072,
+    "predicted": 0.0667,
+    "actual": 0.0657
+   },
+   {
+    "from": 0.1,
+    "to": 0.2,
+    "rows": 1337,
+    "predicted": 0.1356,
+    "actual": 0.107
+   },
+   {
+    "from": 0.2,
+    "to": 0.3,
+    "rows": 376,
+    "predicted": 0.2397,
+    "actual": 0.1782
+   },
+   {
+    "from": 0.3,
+    "to": 0.4,
+    "rows": 94,
+    "predicted": 0.3467,
+    "actual": 0.1915
+   },
+   {
+    "from": 0.4,
+    "to": 0.6,
+    "rows": 88,
+    "predicted": 0.4667,
+    "actual": 0.1477
+   },
+   {
+    "from": 0.6,
+    "to": 1.01,
+    "rows": 14,
+    "predicted": 0.7031,
+    "actual": 0.0
+   }
+  ],
+  "worst_band": {
+   "from": 0.4,
+   "to": 0.6,
+   "rows": 88,
+   "predicted": 0.4667,
+   "actual": 0.1477
+  },
+  "calibrated": {
+   "brier": 0.0162,
+   "predicted_max": 0.174,
+   "input_max": 0.403,
+   "top_rows": 100,
+   "reliability": [
+    {
+     "from": 0.0,
+     "to": 0.02,
+     "rows": 54360,
+     "predicted": 0.0029,
+     "actual": 0.0029
+    },
+    {
+     "from": 0.02,
+     "to": 0.05,
+     "rows": 19728,
+     "predicted": 0.0316,
+     "actual": 0.0316
+    },
+    {
+     "from": 0.05,
+     "to": 0.1,
+     "rows": 6449,
+     "predicted": 0.065,
+     "actual": 0.065
+    },
+    {
+     "from": 0.1,
+     "to": 0.2,
+     "rows": 1538,
+     "predicted": 0.1385,
+     "actual": 0.1385
+    }
+   ],
+   "worst_band": {
+    "from": 0.1,
+    "to": 0.2,
+    "rows": 1538,
+    "predicted": 0.1385,
+    "actual": 0.1385
+   }
+  }
  },
  "bonus": {
   "metric": "MAE",
