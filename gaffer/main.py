@@ -120,9 +120,15 @@ def main():
             odds_note += f"; modelled: {len(unpriced)}"
     print(f"  odds: {odds_note}")
 
+    # The UCL side already knows which English clubs are in that competition,
+    # because it has to join them to UEFA's feed. Checking the hand-typed
+    # list against it is free and catches exactly the rot that let Manchester
+    # United play every European week with no haircut.
+    from .ucl.availability import ENGLISH as UCL_ENGLISH
     mins_mult = rotation.congestion(
         boot, cfg.get("european_teams", ()), cfg.get("european_weeks", ()),
-        cfg.get("european_haircut", 0.12), cfg.get("midweek_haircut", 0.06))
+        cfg.get("european_haircut", 0.12), cfg.get("midweek_haircut", 0.06),
+        must_include=UCL_ENGLISH)
 
     # Expected minutes from each player's own match log. One request per
     # finished gameweek, cached for a week, because the live payload carries
@@ -144,13 +150,18 @@ def main():
         else:
             print("  minutes: no match logs reachable — falling back to the "
                   "season average")
+    for code, adj in (cfg.get("club_bias") or {}).items():
+        print(f"  club_bias {code}: attack x{float(adj.get('attack', 1.0)):.2f}, "
+              f"defence x{float(adj.get('defence', 1.0)):.2f}"
+              f"   (your judgement, not the model's)")
     proj = projections.build(boot, fx, gws_long, feed, cfg["solio_weight"],
                              cfg.get("form_weight", 0.30),
                              cfg.get("strength_weight", 0.5), mins_mult,
                              cfg.get("team_form_weight", 0.0),
                              cfg.get("team_form_half_life", 2.5),
                              market=market, playtime_table=play,
-                             luck_weight=cfg.get("luck_weight", 0.7))
+                             luck_weight=cfg.get("luck_weight", 0.7),
+                             club_bias=cfg.get("club_bias"))
     if cfg.get("calibrate_to_solio", True):
         scale, n = calibrate.fit(proj, feed, gw)
         if n:
@@ -319,6 +330,16 @@ def main():
     atk, dfn = projections.team_strength(
         boot, fixtures=fx, form_weight=cfg.get("team_form_weight", 0.0),
         half_life=cfg.get("team_form_half_life", 2.5))
+    codes_all = {t["id"]: t["short_name"] for t in boot["teams"]}
+    atk, dfn, biased = projections.apply_club_bias(
+        atk, dfn, codes_all, cfg.get("club_bias"))
+    for code, adj, before, after in biased:
+        if adj is None:
+            print(f"  !! club_bias names {code}, which is not a club")
+            continue
+        print(f"  club_bias {code}: attack x{adj[0]:.2f} "
+              f"{before[0]:.3f}->{after[0]:.3f}, defence x{adj[1]:.2f} "
+              f"{before[1]:.3f}->{after[1]:.3f}  (your judgement, not the model's)")
     lams, tmn = defence.lambdas(boot, fx, gws, atk, fetch.solio(cfg["solio_url"]),
                                 market=market)
     cs_table = defence.table(boot, lams, tmn, gw, limit=12)

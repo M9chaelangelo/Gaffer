@@ -286,7 +286,13 @@ wildcard_time_limit: 180   # seconds
 # competing clubs and the gameweeks that sit between European matchdays are
 # declared here. Check the UEFA calendar and update; a wrong list is worse than
 # an empty one.
-european_teams: [MCI, ARS, LIV, CHE, NEW, TOT, AVL, NFO]
+# Every English club in a European competition. MUN was missing for the whole
+# of this season, which is not an error anyone sees: it is a club quietly
+# projected as though it had a free midweek, in eight separate gameweeks.
+# `rotation.congestion` now checks this against the clubs the UCL side has to
+# join to UEFA's feed, so the Champions League half can no longer rot. Europa
+# and Conference entrants still have to be typed.
+european_teams: [MCI, ARS, LIV, CHE, NEW, TOT, AVL, NFO, MUN]
 # Gameweeks that FOLLOW a European midweek, so the haircut lands on the
 # league game the rotation actually shows up in.
 #
@@ -357,3 +363,23 @@ matchup_prior_seasons: ["2024-25", "2025-26"]
 # that is barely worth it, not enough to block a genuinely good short hold
 # such as a one-week double gameweek.
 churn_cost: 3.0
+
+# Your own view of a club, applied on top of the measurement. The model sees
+# what FPL publishes, which is the Premier League and nothing else — it cannot
+# see a Champions League night, so a side winless in seven across all
+# competitions can still read as average.
+#
+# A defence multiplier ABOVE one means they concede more. Every entry is
+# printed on every run, because an override nobody is reminded of is
+# indistinguishable from a model that agrees with you.
+#
+# MUN, 23 Oct 2026. What the model can see: 10 scored and 10 conceded in seven
+# league games, which is the league average on both counts, and an xG-derived
+# attack already 14% below average. What it cannot see: Como 4-1, 2.04 expected
+# goals against 1.05, and a winless run of seven across all competitions, their
+# longest since 2015. Letting that one match into the average at its true
+# weight — one game against seven — is attack x0.98 and defence x1.06. That is
+# what the evidence supports; turn it up if you believe the eye test over the
+# sample size, and the ledger will eventually say which of you was right.
+club_bias:
+  MUN: {attack: 0.98, defence: 1.06}
