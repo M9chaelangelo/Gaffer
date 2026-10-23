@@ -1,0 +1,152 @@
+{
+ "_what": "The devigged market's expected goals and clean-sheet odds for every matchday-3 fixture. This is the best public forecast there is, and it is the only thing gaffer/ucl/strength.py can be scored against — the engine cannot reach a book from the runner, so strength.py carries every lambda in the UCL projection and nothing had ever measured it.",
+ "_source": "thefantasytool.com matchday-3 card, data by sharp market (Pinnacle), 20 October 2026 06:07 UTC. Club names rewritten to UEFA's fantasy feed spellings.",
+ "_units": "`xg` is that side's expected goals in the fixture; `cs` is its clean-sheet probability as a percentage.",
+ "matchday": 3,
+ "fixtures": [
+  {
+   "home": "Porto",
+   "away": "PSV",
+   "home_xg": 2.1,
+   "away_xg": 1.0,
+   "home_cs": 0.35,
+   "away_cs": 0.12
+  },
+  {
+   "home": "Fenerbahçe",
+   "away": "Slavia Praha",
+   "home_xg": 2.2,
+   "away_xg": 1.1,
+   "home_cs": 0.34,
+   "away_cs": 0.11
+  },
+  {
+   "home": "Liverpool",
+   "away": "Villarreal",
+   "home_xg": 2.3,
+   "away_xg": 1.1,
+   "home_cs": 0.35,
+   "away_cs": 0.1
+  },
+  {
+   "home": "Man City",
+   "away": "AEK Athens",
+   "home_xg": 3.3,
+   "away_xg": 0.6,
+   "home_cs": 0.55,
+   "away_cs": 0.04
+  },
+  {
+   "home": "Paris",
+   "away": "Barcelona",
+   "home_xg": 2.1,
+   "away_xg": 2.1,
+   "home_cs": 0.12,
+   "away_cs": 0.12
+  },
+  {
+   "home": "Roma",
+   "away": "S. Bratislava",
+   "home_xg": 3.3,
+   "away_xg": 0.7,
+   "home_cs": 0.5,
+   "away_cs": 0.04
+  },
+  {
+   "home": "Sabah",
+   "away": "B. Dortmund",
+   "home_xg": 0.8,
+   "away_xg": 2.5,
+   "home_cs": 0.08,
+   "away_cs": 0.44
+  },
+  {
+   "home": "Napoli",
+   "away": "Bodø/Glimt",
+   "home_xg": 1.9,
+   "away_xg": 1.2,
+   "home_cs": 0.3,
+   "away_cs": 0.14
+  },
+  {
+   "home": "Stuttgart",
+   "away": "Atleti",
+   "home_xg": 1.5,
+   "away_xg": 1.9,
+   "home_cs": 0.15,
+   "away_cs": 0.23
+  },
+  {
+   "home": "Aston Villa",
+   "away": "Viking",
+   "home_xg": 3.0,
+   "away_xg": 0.9,
+   "home_cs": 0.4,
+   "away_cs": 0.05
+  },
+  {
+   "home": "Bayern München",
+   "away": "Arsenal",
+   "home_xg": 1.8,
+   "away_xg": 1.3,
+   "home_cs": 0.26,
+   "away_cs": 0.17
+  },
+  {
+   "home": "Club Brugge",
+   "away": "Lens",
+   "home_xg": 1.9,
+   "away_xg": 1.5,
+   "home_cs": 0.23,
+   "away_cs": 0.15
+  },
+  {
+   "home": "Como",
+   "away": "Man Utd",
+   "home_xg": 1.7,
+   "away_xg": 1.5,
+   "home_cs": 0.23,
+   "away_cs": 0.18
+  },
+  {
+   "home": "Inter",
+   "away": "Shakhtar",
+   "home_xg": 3.1,
+   "away_xg": 0.9,
+   "home_cs": 0.42,
+   "away_cs": 0.05
+  },
+  {
+   "home": "Lille",
+   "away": "Galatasaray",
+   "home_xg": 1.7,
+   "away_xg": 1.4,
+   "home_cs": 0.25,
+   "away_cs": 0.18
+  },
+  {
+   "home": "Real Betis",
+   "away": "Feyenoord",
+   "home_xg": 2.4,
+   "away_xg": 1.3,
+   "home_cs": 0.28,
+   "away_cs": 0.09
+  },
+  {
+   "home": "Real Madrid",
+   "away": "Leipzig",
+   "home_xg": 3.2,
+   "away_xg": 1.1,
+   "home_cs": 0.34,
+   "away_cs": 0.04
+  },
+  {
+   "home": "Sporting CP",
+   "away": "LASK",
+   "home_xg": 3.0,
+   "away_xg": 0.8,
+   "home_cs": 0.43,
+   "away_cs": 0.05
+  }
+ ]
+}
