@@ -143,3 +143,62 @@ def test_the_engine_cannot_yet_express_a_genuinely_weak_away_side(market, pool):
     assert min(lows) > 0.8, "fixed? then the comment above is out of date"
     market_low = min(f["away_xg"] for f in market["fixtures"])
     assert market_low < min(lows) - 0.2
+
+
+# --- clean sheets: the other half of the panel ------------------------------
+
+def _cs_pairs(pool, fixtures, use_market_lambdas=False):
+    """(market clean-sheet odds, modelled) for both sides of every fixture.
+
+    A side keeps a clean sheet when the OTHER side fails to score, so the
+    modelled figure is exp(-lambda) on the opponent's expected goals.
+    """
+    rate, mu = strength.ratings(pool)
+    out = []
+    for f in fixtures:
+        lh, la = strength.lambdas(rate, f["home"], f["away"], mu)
+        if use_market_lambdas:
+            lh, la = f["home_xg"], f["away_xg"]
+        out += [(f["home_cs"], math.exp(-la)), (f["away_cs"], math.exp(-lh))]
+    return out
+
+
+def test_the_clean_sheet_model_is_not_the_problem(market, pool):
+    """A negative result worth keeping, because it says where NOT to look.
+
+    Feed the market's own expected goals into exp(-lambda) and the market's
+    own clean-sheet percentages come back to within half a point: MAE 0.005,
+    bias -0.0001 over thirty-six sides. The independent Poisson is exactly
+    the relationship the market is using, so there is no Dixon-Coles
+    correction owed here and no reason to touch the simulator. Every point
+    of clean-sheet error the engine has is inherited from its lambdas.
+    """
+    pairs = _cs_pairs(pool, market["fixtures"], use_market_lambdas=True)
+    assert _mae(pairs) < 0.01
+    assert abs(_bias(pairs)) < 0.005
+
+
+def test_clean_sheets_are_understated_by_exactly_as_much_as_goals_are_over(
+        market, pool):
+    """And so they are one defect, not two. Every defender and goalkeeper
+    pick rests on this number, and the engine has it 4.5 points low because
+    it still expects 0.18 goals a side too many."""
+    cs = _cs_pairs(pool, market["fixtures"])
+    goals = _errors(pool, market["fixtures"])
+    assert _bias(goals) > 0, "goals over-predicted"
+    assert _bias(cs) < 0, "clean sheets under-predicted"
+    assert _mae(cs) < 0.08
+    # Same direction, same cause: fixing the lambdas fixes both.
+    assert abs(_bias(cs)) < 0.07
+
+
+def test_the_engine_ranks_clean_sheets_the_way_the_market_does(market, pool):
+    pairs = _cs_pairs(pool, market["fixtures"])
+    ma = sum(a for a, _ in pairs) / len(pairs)
+    mb = sum(b for _, b in pairs) / len(pairs)
+    num = sum((a - ma) * (b - mb) for a, b in pairs)
+    den = math.sqrt(sum((a - ma) ** 2 for a, _ in pairs)
+                    * sum((b - mb) ** 2 for _, b in pairs))
+    assert num / den > 0.85
+    flat = sum(abs(a - ma) for a, _ in pairs) / len(pairs)
+    assert _mae(pairs) < 0.6 * flat
